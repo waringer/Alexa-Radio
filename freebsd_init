@@ -1,0 +1,27 @@
+#!/bin/sh
+
+# PROVIDE: alexa_radio
+# REQUIRE: NETWORKING
+
+#
+# Add the following line to /etc/rc.conf to enable alexa_radio:
+#
+# alexa_radio_enable="YES"
+#
+
+. /etc/rc.subr
+
+name=alexa_radio
+rcvar=alexa_radio_enable
+
+load_rc_config $name
+
+: ${alexa_radio_enable:="NO"}
+: ${alexa_radio_flags:=""}
+
+pidfile=/var/run/alexa_radio.pid
+command="/usr/local/bin/alexa_radio"
+
+start_cmd="nohup ${command} ${alexa_radio_flags} >> /tmp/alexa_radio.log 2>&1 &"
+
+run_rc_command "$1"
