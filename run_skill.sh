@@ -1,0 +1,16 @@
+#!/bin/sh
+
+p=`pwd`
+
+export GOPATH=$p/lib/
+export GIT_SSL_NO_VERIFY=1
+
+echo "get libs"
+go get -u -d github.com/waringer/go-alexa/skillserver
+go get -u -d github.com/go-sql-driver/mysql
+go get -u -d github.com/vmware/go-nfs-client/nfs
+go get -u -d github.com/rasky/go-xdr/xdr2
+go get -u -d github.com/dhowden/tag
+
+echo "run radio skill server"
+go run -ldflags "-X main.buildstamp=`date -u '+%Y-%m-%d_%I:%M:%S%p'` -X main.githash=`git rev-parse HEAD`" radio.go helper.go
