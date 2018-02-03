@@ -71,7 +71,12 @@ func main() {
 	}
 
 	for confIndex, actualConf := range conf.Scanner {
-		startScanner(actualConf, confIndex)
+		switch actualConf.FileAccessMode {
+		case "nfs":
+			startNFSScanner(actualConf, confIndex)
+		default:
+			startScanner(actualConf, confIndex)
+		}
 	}
 
 	close(jobs)
@@ -80,25 +85,27 @@ func main() {
 	log.Println("All finished")
 }
 
-func startScanner(actualConf ScannerConfiguration, confIndex int) {
-	mount, err := nfs.DialMount(actualConf.NFSServer)
+func startNFSScanner(actualConf ScannerConfiguration, confIndex int) {
+	log.Println("using nfs for file access")
+
+	nfsMount, err := nfs.DialMount(actualConf.NFSServer)
+	defer nfsMount.Close()
 	if err != nil {
 		log.Fatalf("unable to dial MOUNT service: %v", err)
 	}
-	defer mount.Close()
 
-	v, err := mount.Mount(actualConf.NFSShare, rpc.AuthNull)
+	nfsTarget, err := nfsMount.Mount(actualConf.NFSShare, rpc.AuthNull)
 	if err != nil {
+		defer nfsTarget.Close()
 		log.Fatalf("unable to mount volume: %v", err)
 	}
-	defer v.Close()
 
 	for _, actualPath := range actualConf.IncludePaths {
-		scanPath(v, confIndex, actualPath, 0)
+		scanNFSPath(nfsTarget, confIndex, actualPath, 0)
 	}
 }
 
-func scanPath(v *nfs.Target, confIndex int, path string, deep int) {
+func scanNFSPath(v *nfs.Target, confIndex int, path string, deep int) {
 	log.Println("Scanning path :", path)
 
 	dirs, err := v.ReadDirPlus(path)
@@ -112,17 +119,47 @@ func scanPath(v *nfs.Target, confIndex int, path string, deep int) {
 		if (dir.FileName != ".") && (dir.FileName != "..") && !isExcludedPath(confIndex, fileName) {
 			switch {
 			case dir.IsDir():
-				scanPath(v, confIndex, fileName, deep+1)
+				scanNFSPath(v, confIndex, fileName, deep+1)
 			case isValidExtension(confIndex, dir.FileName):
-				scanFile(v, confIndex, fileName, deep)
+				scanFile(v, confIndex, fileName, "", deep)
 			}
 		}
 	}
 }
 
-func scanFile(v *nfs.Target, confIndex int, filename string, deep int) {
+func startScanner(actualConf ScannerConfiguration, confIndex int) {
+	log.Println("using local filesystem for file access")
+
+	for _, actualPath := range actualConf.IncludePaths {
+		scanPath(confIndex, actualPath, actualConf.LocalBasePath, 0)
+	}
+}
+
+func scanPath(confIndex int, path string, basePath string, deep int) {
+	log.Println("Scanning path :", basePath, path)
+
+	dirs, err := ioutil.ReadDir(basePath + path)
+	if err != nil {
+		return
+	}
+
+	for _, dir := range dirs {
+		fileName := path + "/" + dir.Name()
+
+		if (dir.Name() != ".") && (dir.Name() != "..") && !isExcludedPath(confIndex, fileName) {
+			switch {
+			case dir.IsDir():
+				scanPath(confIndex, fileName, basePath, deep+1)
+			case isValidExtension(confIndex, dir.Name()):
+				scanFile(nil, confIndex, fileName, basePath, deep)
+			}
+		}
+	}
+}
+
+func scanFile(v *nfs.Target, confIndex int, filename string, basePath string, deep int) {
 	if conf.Scanner[confIndex].UseTags == true {
-		trackinfo := getTags(v, filename)
+		trackinfo := getTags(v, basePath, filename)
 		if !trackinfo.found {
 			log.Println("Using path matching for deep", deep)
 			trackinfo = parseFileName(filename, conf.Scanner[confIndex].Extractors[deep])
@@ -151,25 +188,39 @@ func parseFileName(fileName string, regEx string) trackInfo {
 	}
 }
 
-func getTags(v *nfs.Target, fileName string) trackInfo {
-	tmpfile, err := ioutil.TempFile("", "scanner")
-	if err != nil {
-		log.Fatal(err)
+func getTags(v *nfs.Target, basePath string, fileName string) trackInfo {
+	var fileHandle *os.File
+
+	if v != nil {
+		tmpfile, err := ioutil.TempFile("", "scanner")
+		if err != nil {
+			log.Fatal(err)
+		}
+		defer os.Remove(tmpfile.Name()) // clean up
+		defer tmpfile.Close()
+
+		rf, err := v.Open(fileName)
+		if err != nil {
+			log.Fatalf("Open: %s", err.Error())
+		}
+		defer rf.Close()
+
+		rfc, _ := ioutil.ReadAll(rf)
+		tmpfile.Write(rfc)
+		tmpfile.Seek(0, io.SeekStart)
+
+		fileHandle = tmpfile
+	} else {
+		f, err := os.Open(basePath + fileName)
+		if err != nil {
+			log.Fatalf("error open file: %s", err.Error())
+		}
+		defer f.Close()
+
+		fileHandle = f
 	}
-	defer os.Remove(tmpfile.Name()) // clean up
-	defer tmpfile.Close()
 
-	rf, err := v.Open(fileName)
-	if err != nil {
-		log.Fatalf("Open: %s", err.Error())
-	}
-	defer rf.Close()
-
-	rfc, _ := ioutil.ReadAll(rf)
-	tmpfile.Write(rfc)
-	tmpfile.Seek(0, io.SeekStart)
-
-	m, err := tag.ReadFrom(tmpfile)
+	m, err := tag.ReadFrom(fileHandle)
 	if err != nil {
 		log.Println("Can't read tag :", err.Error())
 	} else {
@@ -202,7 +253,6 @@ func getTags(v *nfs.Target, fileName string) trackInfo {
 }
 
 func getParams(regEx, fileName string) (paramsMap map[string]string) {
-
 	var compRegEx = regexp.MustCompile(regEx)
 	match := compRegEx.FindStringSubmatch(fileName)
 

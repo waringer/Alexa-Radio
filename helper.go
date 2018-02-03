@@ -30,6 +30,8 @@ type Configuration struct {
 // ScannerConfiguration structure to store the configuration that apply only to the scanner
 type ScannerConfiguration struct {
 	UseTags         bool                   `json:"useTags"`
+	FileAccessMode  string                 `json:"fileAccessMode"` // nfs or local
+	LocalBasePath   string                 `json:"localBasePath"`
 	NFSServer       string                 `json:"nfsServer"`
 	NFSShare        string                 `json:"nfsShare"`
 	ValidExtensions map[string]interface{} `json:"validExtensions"`

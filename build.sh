@@ -9,7 +9,6 @@ echo "get libs"
 go get -u -d github.com/waringer/go-alexa/skillserver
 go get -u -d github.com/go-sql-driver/mysql
 go get -u -d github.com/vmware/go-nfs-client/nfs
-go get -u -d github.com/rasky/go-xdr/xdr2
 go get -u -d github.com/dhowden/tag
 
 echo "build radio skill server"

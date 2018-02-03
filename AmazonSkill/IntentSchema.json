@@ -1,10 +1,22 @@
 {
   "intents": [
     {
-      "intent": "spiele"
+      "slots": [
+        {
+          "name": "Searching",
+          "type": "SEARCHPARAM"
+        }
+      ],
+      "intent": "StartPlay"
+    },
+    {
+      "intent": "ResumePlay"
     },
     {
       "intent": "AMAZON.CancelIntent"
+    },
+    {
+      "intent": "CurrentlyPlaying"
     },
     {
       "intent": "AMAZON.HelpIntent"
