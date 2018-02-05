@@ -12,6 +12,6 @@ go get -u -d github.com/vmware/go-nfs-client/nfs
 go get -u -d github.com/dhowden/tag
 
 echo "build radio skill server"
-go build -ldflags "-X main.buildstamp=`date -u '+%Y-%m-%d_%I:%M:%S%p'` -X main.githash=`git rev-parse HEAD`" radio.go helper.go
+go build -ldflags "-X main.buildstamp=`date -u '+%Y-%m-%d_%I:%M:%S%p'` -X main.githash=`git rev-parse HEAD`" radio.go shared.go database.go
 echo "build scanner tool"
-go build -ldflags "-X main.buildstamp=`date -u '+%Y-%m-%d_%I:%M:%S%p'` -X main.githash=`git rev-parse HEAD`" scanner.go helper.go
+go build -ldflags "-X main.buildstamp=`date -u '+%Y-%m-%d_%I:%M:%S%p'` -X main.githash=`git rev-parse HEAD`" scanner.go shared.go database.go

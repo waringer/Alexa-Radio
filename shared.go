@@ -29,15 +29,16 @@ type Configuration struct {
 
 // ScannerConfiguration structure to store the configuration that apply only to the scanner
 type ScannerConfiguration struct {
-	UseTags         bool                   `json:"useTags"`
-	FileAccessMode  string                 `json:"fileAccessMode"` // nfs or local
-	LocalBasePath   string                 `json:"localBasePath"`
-	NFSServer       string                 `json:"nfsServer"`
-	NFSShare        string                 `json:"nfsShare"`
-	ValidExtensions map[string]interface{} `json:"validExtensions"`
-	IncludePaths    []string               `json:"pathIncludes"`
-	ExcludePaths    []string               `json:"pathExcludes"`
-	Extractors      map[int]string         `json:"tagExtractors"`
+	UseTags                bool                   `json:"useTags"`
+	FileAccessMode         string                 `json:"fileAccessMode"` // nfs or local
+	RemoveNoLongerExisting bool                   `json:"removeNoLongerExisting"`
+	LocalBasePath          string                 `json:"localBasePath"`
+	NFSServer              string                 `json:"nfsServer"`
+	NFSShare               string                 `json:"nfsShare"`
+	ValidExtensions        map[string]interface{} `json:"validExtensions"`
+	IncludePaths           []string               `json:"pathIncludes"`
+	ExcludePaths           []string               `json:"pathExcludes"`
+	Extractors             map[int]string         `json:"tagExtractors"`
 }
 
 var (
@@ -63,7 +64,9 @@ func loadConfig(filename string) (Configuration, error) {
 		DBServer:    "localhost",
 		Scanner: []ScannerConfiguration{
 			ScannerConfiguration{
-				UseTags: false,
+				UseTags:                true,
+				FileAccessMode:         "local",
+				RemoveNoLongerExisting: false,
 				ValidExtensions: map[string]interface{}{
 					".mp3":  true,
 					".flac": true,
@@ -101,21 +104,6 @@ func writePid(PidFile string) {
 	defer f.Close()
 
 	f.WriteString(fmt.Sprintf("%d", pid))
-}
-
-func openDB(conf Configuration) (*sql.DB, error) {
-	db, err := sql.Open("mysql", fmt.Sprintf("%s:%s@tcp(%s)/%s", conf.DBUser, conf.DBPassword, conf.DBServer, conf.DBName))
-	if err != nil {
-		return nil, err
-	}
-
-	// Open doesn't open a connection. Validate DSN data:
-	err = db.Ping()
-	if err != nil {
-		return nil, err
-	}
-
-	return db, nil
 }
 
 func urlEncode(fileName string) (URL string) {

@@ -12,4 +12,4 @@ go get -u -d github.com/vmware/go-nfs-client/nfs
 go get -u -d github.com/dhowden/tag
 
 echo "run radio skill server"
-go run -ldflags "-X main.buildstamp=`date -u '+%Y-%m-%d_%I:%M:%S%p'` -X main.githash=`git rev-parse HEAD`" radio.go helper.go
+go run -ldflags "-X main.buildstamp=`date -u '+%Y-%m-%d_%I:%M:%S%p'` -X main.githash=`git rev-parse HEAD`" radio.go shared.go database.go
