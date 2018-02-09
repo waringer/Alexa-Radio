@@ -4,6 +4,7 @@ import (
 	"database/sql"
 	"fmt"
 	"log"
+	"strings"
 	"time"
 
 	_ "github.com/go-sql-driver/mysql"
@@ -35,35 +36,12 @@ func emptyDB() {
 	database.Exec("SET FOREIGN_KEY_CHECKS = 1;")
 }
 
-func insertDB(track trackInfo) {
+func insertTrack(track trackInfo) {
 	runningJobs <- true
 	defer func() { _ = <-runningJobs }()
 
-	var artistIndex int
-	for { // try multiple time to get id
-		err := database.QueryRow("SELECT fnAddArtist(?)", track.artist).Scan(&artistIndex)
-		if err != nil {
-			log.Println("DB Error ArtisT:", err)
-		}
-		if artistIndex != -1 {
-			break
-		}
-		time.Sleep(2000 * time.Millisecond)
-		log.Println("retry artist")
-	}
-
-	var albumIndex int
-	for { // try multiple time to get id
-		err := database.QueryRow("SELECT fnAddAlbum(?,?)", track.album, track.albumIndex).Scan(&albumIndex)
-		if err != nil {
-			log.Println("DB Error AlbuM:", err)
-		}
-		if albumIndex != -1 {
-			break
-		}
-		time.Sleep(2000 * time.Millisecond)
-		log.Println("retry album")
-	}
+	artistIndex := getArtistID(track.artist)
+	albumIndex := getAlbumID(track.album, track.albumIndex)
 
 	var trackIndex int
 	err := database.QueryRow("SELECT TK_id FROM TracK WHERE TK_FileName = ?", track.fileName).Scan(&trackIndex)
@@ -77,6 +55,49 @@ func insertDB(track trackInfo) {
 	}
 }
 
+func updateTrack(track trackInfo) {
+	runningJobs <- true
+	defer func() { _ = <-runningJobs }()
+
+	artistIndex := getArtistID(track.artist)
+	albumIndex := getAlbumID(track.album, track.albumIndex)
+
+	_, err := database.Exec("UPDATE TracK SET TK_Name = ?, TK_AT_id = ?, TK_AM_id = ?, TK_Index = ? WHERE TK_FileName = ?", track.track, artistIndex, albumIndex, track.trackIndex, track.fileName)
+	if err != nil {
+		log.Println("DB Error TracK:", err, track, artistIndex, albumIndex)
+	}
+
+	log.Println("==> New Track inserted:", track.artist, track.album, track.track)
+}
+
+func getArtistID(artist string) (artistIndex int) {
+	for { // try multiple time to get id
+		err := database.QueryRow("SELECT fnAddArtist(?)", strings.TrimSpace(artist)).Scan(&artistIndex)
+		if err != nil {
+			log.Println("DB Error ArtisT:", err)
+		}
+		if artistIndex != -1 {
+			return
+		}
+		time.Sleep(2000 * time.Millisecond)
+		log.Println("retry artist")
+	}
+}
+
+func getAlbumID(album string, index int) (albumIndex int) {
+	for { // try multiple time to get id
+		err := database.QueryRow("SELECT fnAddAlbum(?,?)", strings.TrimSpace(album), index).Scan(&albumIndex)
+		if err != nil {
+			log.Println("DB Error AlbuM:", err)
+		}
+		if albumIndex != -1 {
+			return
+		}
+		time.Sleep(2000 * time.Millisecond)
+		log.Println("retry album")
+	}
+}
+
 func existsInDB(fileName string) bool {
 	var trackIndex int
 	err := database.QueryRow("SELECT TK_id FROM TracK WHERE TK_FileName = ?", fileName).Scan(&trackIndex)
@@ -84,6 +105,9 @@ func existsInDB(fileName string) bool {
 }
 
 func removeTrackDB(id int) {
+	runningJobs <- true
+	defer func() { _ = <-runningJobs }()
+
 	_, err := database.Exec("CALL spDeleteTrack(?)", id)
 	if err != nil {
 		log.Println("DB Error removeTrackDB:", err, id)
@@ -91,6 +115,9 @@ func removeTrackDB(id int) {
 }
 
 func touchTrack(fileName string) {
+	runningJobs <- true
+	defer func() { _ = <-runningJobs }()
+
 	_, err := database.Exec("UPDATE TracK SET TK_LastSeen = CURRENT_TIMESTAMP WHERE TK_FileName = ?", fileName)
 	if err != nil {
 		log.Println("DB Error touchTrack:", err)

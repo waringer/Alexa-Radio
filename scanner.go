@@ -8,6 +8,8 @@ import (
 	"log"
 	"os"
 	"regexp"
+	"runtime"
+	"runtime/pprof"
 	"strconv"
 	"strings"
 	"sync"
@@ -42,22 +44,43 @@ type scanFileInfo struct {
 	deep      int
 }
 
-var dbJobs = make(chan trackInfo, 500)
+type dbJob struct {
+	jobType string
+	track   trackInfo
+}
+
+var dbJobs = make(chan dbJob, 500)
 var fileJobs = make(chan scanFileInfo, 1000)
 var scannerJobs = make(chan scannerInfo, 50)
 var runningJobs = make(chan bool, 10000)
 var timeStampDB = ""
 
+var updateDB = flag.Bool("u", false, "update db entrys if exists")
+
 func main() {
 	ConfFile := flag.String("c", "radio.conf", "config file to use")
 	EmptyDB := flag.Bool("e", false, "reset db before insert new")
 	Version := flag.Bool("v", false, "prints current version and exit")
+
+	cpuprofile := flag.String("cpuprofile", "", "write cpu profile `file`")
+	memprofile := flag.String("memprofile", "", "write memory profile to `file`")
 	flag.Parse()
 
 	if *Version {
 		fmt.Println("Build:", buildstamp)
 		fmt.Println("Githash:", githash)
 		os.Exit(0)
+	}
+
+	if *cpuprofile != "" {
+		f, err := os.Create(*cpuprofile)
+		if err != nil {
+			log.Fatal("could not create CPU profile: ", err)
+		}
+		if err := pprof.StartCPUProfile(f); err != nil {
+			log.Fatal("could not start CPU profile: ", err)
+		}
+		defer pprof.StopCPUProfile()
 	}
 
 	Config, err := loadConfig(*ConfFile)
@@ -82,11 +105,12 @@ func main() {
 		emptyDB()
 	}
 
+	var wgDB sync.WaitGroup
 	var wg sync.WaitGroup
-	// db workers
+	// db insert workers
 	for i := 0; i < 20; i++ {
-		wg.Add(1)
-		go dbWorker(&wg)
+		wgDB.Add(1)
+		go dbWorker(&wgDB)
 	}
 
 	for i := 0; i < 100; i++ {
@@ -120,17 +144,37 @@ func main() {
 
 	close(scannerJobs)
 	close(fileJobs)
-	close(dbJobs)
 	log.Println("> Jobs closed")
 	wg.Wait()
 
-	//todo remove old from db
+	for {
+		if (len(dbJobs) == 0) && (len(runningJobs) == 0) {
+			break
+		}
+		time.Sleep(500 * time.Millisecond) // give jobs time to work
+	}
+
 	log.Println("> remove old entrys")
 	for _, actualConf := range conf.Scanner {
 		startRemove(actualConf)
 	}
 
+	close(dbJobs)
+	wgDB.Wait()
+
 	log.Println("> All finished")
+
+	if *memprofile != "" {
+		f, err := os.Create(*memprofile)
+		if err != nil {
+			log.Fatal("could not create memory profile: ", err)
+		}
+		runtime.GC() // get up-to-date statistics
+		if err := pprof.WriteHeapProfile(f); err != nil {
+			log.Fatal("could not write memory profile: ", err)
+		}
+		f.Close()
+	}
 }
 
 func startNFSScanner(scannerConf scannerInfo) {
@@ -230,23 +274,40 @@ func scanFile(confScanFile scanFileInfo) {
 	defer func() { _ = <-runningJobs }()
 
 	if existsInDB(confScanFile.filename) {
-		//todo update ?
-		//log.Println("==> existing:", confScanFile.filename)
-		touchTrack(confScanFile.filename)
-	} else {
-		if conf.Scanner[confScanFile.confIndex].UseTags == true {
-			trackinfo := getTags(confScanFile.v, confScanFile.basePath, confScanFile.filename)
-			if !trackinfo.found {
-				log.Println("==> Using path matching for deep:", confScanFile.deep)
-				trackinfo = parseFileName(confScanFile.filename, conf.Scanner[confScanFile.confIndex].Extractors[confScanFile.deep])
+		if *updateDB {
+			dbJobs <- dbJob{
+				jobType: "update",
+				track:   getTrackInfo(confScanFile),
 			}
-			dbJobs <- trackinfo
 		} else {
-			log.Println("==> Using path matching for deep:", confScanFile.deep)
-			trackinfo := parseFileName(confScanFile.filename, conf.Scanner[confScanFile.confIndex].Extractors[confScanFile.deep])
-			dbJobs <- trackinfo
+			dbJobs <- dbJob{
+				jobType: "touch",
+				track: trackInfo{
+					fileName: confScanFile.filename,
+					found:    true,
+				},
+			}
+		}
+	} else {
+		dbJobs <- dbJob{
+			jobType: "insert",
+			track:   getTrackInfo(confScanFile),
 		}
 	}
+}
+
+func getTrackInfo(confScanFile scanFileInfo) trackInfo {
+	if conf.Scanner[confScanFile.confIndex].UseTags == true {
+		trackinfo := getTags(confScanFile.v, confScanFile.basePath, confScanFile.filename)
+		if !trackinfo.found {
+			log.Println("==> Using path matching for deep:", confScanFile.deep)
+			trackinfo = parseFileName(confScanFile.filename, conf.Scanner[confScanFile.confIndex].Extractors[confScanFile.deep])
+		}
+		return trackinfo
+	}
+
+	log.Println("==> Using path matching for deep:", confScanFile.deep)
+	return parseFileName(confScanFile.filename, conf.Scanner[confScanFile.confIndex].Extractors[confScanFile.deep])
 }
 
 func parseFileName(fileName string, regEx string) trackInfo {
@@ -373,7 +434,13 @@ func startRemove(actualConf ScannerConfiguration) {
 			if len(trackIDs) != 0 {
 				log.Println("=> found old with ids:", trackIDs)
 				for _, trackID := range trackIDs {
-					removeTrackDB(trackID)
+					dbJobs <- dbJob{
+						jobType: "remove",
+						track: trackInfo{
+							trackIndex: trackID,
+							found:      true,
+						},
+					}
 				}
 			}
 		}
@@ -382,7 +449,16 @@ func startRemove(actualConf ScannerConfiguration) {
 
 func dbWorker(wg *sync.WaitGroup) {
 	for job := range dbJobs {
-		insertDB(job)
+		switch job.jobType {
+		case "insert":
+			insertTrack(job.track)
+		case "touch":
+			touchTrack(job.track.fileName)
+		case "update":
+			updateTrack(job.track)
+		case "remove":
+			removeTrackDB(job.track.trackIndex)
+		}
 	}
 	wg.Done()
 }
