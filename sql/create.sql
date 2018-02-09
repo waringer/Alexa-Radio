@@ -119,6 +119,20 @@ BEGIN
 END//
 DELIMITER ;
 
+-- Exportiere Struktur von Prozedur radiogo.spDeleteTrack
+DROP PROCEDURE IF EXISTS `spDeleteTrack`;
+DELIMITER //
+CREATE DEFINER=`radiogo`@`%` PROCEDURE `spDeleteTrack`(
+	IN `TKid` INT
+)
+    MODIFIES SQL DATA
+BEGIN
+	DELETE FROM ActualPlaying WHERE AP_TK_id = TKid;
+	UPDATE DeVice SET DV_LastTKid = NULL WHERE DV_LastTKid = TKid;
+	DELETE FROM TracK WHERE TK_id = TKid;
+END//
+DELIMITER ;
+
 -- Exportiere Struktur von Prozedur radiogo.spUpdateActualPlaying
 DROP PROCEDURE IF EXISTS `spUpdateActualPlaying`;
 DELIMITER //
@@ -159,6 +173,7 @@ CREATE TABLE IF NOT EXISTS `TracK` (
   `TK_Index` int(10) unsigned NOT NULL DEFAULT '0',
   `TK_Name` varchar(200) NOT NULL,
   `TK_FileName` varchar(2000) NOT NULL,
+  `TK_LastSeen` timestamp NOT NULL DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP,
   PRIMARY KEY (`TK_id`),
   KEY `Artist` (`TK_AT_id`),
   KEY `Album` (`TK_AM_id`),
@@ -192,7 +207,7 @@ CREATE TABLE `vTrackInfo` (
 DROP VIEW IF EXISTS `vActualPlaylists`;
 -- Entferne temporäre Tabelle und erstelle die eigentliche View
 DROP TABLE IF EXISTS `vActualPlaylists`;
-CREATE ALGORITHM=UNDEFINED DEFINER=`radiogo`@`%` SQL SECURITY DEFINER VIEW `vActualPlaylists` AS select ifnull(`DeVice`.`DV_Alias`,`DeVice`.`DV_id`) AS `Device`,`ArtisT`.`AT_Name` AS `Artist`,`AlbuM`.`AM_Name` AS `Album`,`TracK`.`TK_Name` AS `Track`,`ActualPlaying`.`AP_Playcount` AS `Playcount` from ((((`ActualPlaying` join `DeVice` on((`ActualPlaying`.`AP_DV_id` = `DeVice`.`DV_id`))) join `TracK` on((`ActualPlaying`.`AP_TK_id` = `TracK`.`TK_id`))) join `AlbuM` on((`TracK`.`TK_AM_id` = `AlbuM`.`AM_id`))) join `ArtisT` on((`TracK`.`TK_AT_id` = `ArtisT`.`AT_id`)));
+CREATE ALGORITHM=UNDEFINED DEFINER=`radiogo`@`%` SQL SECURITY DEFINER VIEW `vActualPlaylists` AS select ifnull(`DeVice`.`DV_Alias`,`DeVice`.`DV_id`) AS `Device`,`ArtisT`.`AT_Name` AS `Artist`,`AlbuM`.`AM_Name` AS `Album`,`TracK`.`TK_Name` AS `Track`,`ActualPlaying`.`AP_Playcount` AS `Playcount` from ((((`ActualPlaying` join `DeVice` on((`ActualPlaying`.`AP_DV_id` = `DeVice`.`DV_id`))) join `TracK` on((`ActualPlaying`.`AP_TK_id` = `TracK`.`TK_id`))) join `AlbuM` on((`TracK`.`TK_AM_id` = `AlbuM`.`AM_id`))) join `ArtisT` on((`TracK`.`TK_AT_id` = `ArtisT`.`AT_id`))) order by `ActualPlaying`.`AP_Playcount`,`ActualPlaying`.`AP_Sort`,`ActualPlaying`.`AP_TK_id`;
 
 -- Exportiere Struktur von View radiogo.vTrackInfo
 DROP VIEW IF EXISTS `vTrackInfo`;
