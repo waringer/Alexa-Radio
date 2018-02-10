@@ -56,6 +56,7 @@ var runningJobs = make(chan bool, 10000)
 var timeStampDB = ""
 
 var updateDB = flag.Bool("u", false, "update db entrys if exists")
+var simulateOnly = flag.Bool("s", false, "only simulate - no change in the db")
 
 func main() {
 	ConfFile := flag.String("c", "radio.conf", "config file to use")
@@ -300,13 +301,13 @@ func getTrackInfo(confScanFile scanFileInfo) trackInfo {
 	if conf.Scanner[confScanFile.confIndex].UseTags == true {
 		trackinfo := getTags(confScanFile.v, confScanFile.basePath, confScanFile.filename)
 		if !trackinfo.found {
-			log.Println("==> Using path matching for deep:", confScanFile.deep)
+			log.Println("==> Using path matching for deep:", confScanFile.deep, confScanFile.filename)
 			trackinfo = parseFileName(confScanFile.filename, conf.Scanner[confScanFile.confIndex].Extractors[confScanFile.deep])
 		}
 		return trackinfo
 	}
 
-	log.Println("==> Using path matching for deep:", confScanFile.deep)
+	log.Println("==> Using path matching for deep:", confScanFile.deep, confScanFile.filename)
 	return parseFileName(confScanFile.filename, conf.Scanner[confScanFile.confIndex].Extractors[confScanFile.deep])
 }
 
@@ -449,15 +450,35 @@ func startRemove(actualConf ScannerConfiguration) {
 
 func dbWorker(wg *sync.WaitGroup) {
 	for job := range dbJobs {
-		switch job.jobType {
-		case "insert":
-			insertTrack(job.track)
-		case "touch":
-			touchTrack(job.track.fileName)
-		case "update":
-			updateTrack(job.track)
-		case "remove":
-			removeTrackDB(job.track.trackIndex)
+		if !*simulateOnly {
+			switch job.jobType {
+			case "insert":
+				insertTrack(job.track)
+			case "touch":
+				touchTrack(job.track.fileName)
+			case "update":
+				updateTrack(job.track)
+			case "remove":
+				removeTrackDB(job.track.trackIndex)
+			}
+		} else {
+			switch job.jobType {
+			case "insert":
+				log.Println("DB insert of track filename:", job.track.fileName)
+				log.Println("DB insert of track:", job.track.trackIndex, job.track.track)
+				log.Println("DB insert of artist:", job.track.artist)
+				log.Println("DB insert of album:", job.track.albumIndex, job.track.album)
+			case "touch":
+				log.Println("DB touch of track filename:", job.track.fileName)
+			case "update":
+				log.Println("DB update of track filename:", job.track.fileName)
+				log.Println("DB update of track:", job.track.trackIndex, job.track.track)
+				log.Println("DB update of artist:", job.track.artist)
+				log.Println("DB update of album:", job.track.albumIndex, job.track.album)
+			case "remove":
+				log.Println("DB remove of track:", job.track.trackIndex)
+			}
+		
 		}
 	}
 	wg.Done()

@@ -62,7 +62,7 @@ func updateTrack(track trackInfo) {
 	artistIndex := getArtistID(track.artist)
 	albumIndex := getAlbumID(track.album, track.albumIndex)
 
-	_, err := database.Exec("UPDATE TracK SET TK_Name = ?, TK_AT_id = ?, TK_AM_id = ?, TK_Index = ? WHERE TK_FileName = ?", track.track, artistIndex, albumIndex, track.trackIndex, track.fileName)
+	_, err := database.Exec("UPDATE TracK SET TK_Name = ?, TK_AT_id = ?, TK_AM_id = ?, TK_Index = ?, TK_LastSeen = CURRENT_TIMESTAMP WHERE TK_FileName = ?", track.track, artistIndex, albumIndex, track.trackIndex, track.fileName)
 	if err != nil {
 		log.Println("DB Error TracK:", err, track, artistIndex, albumIndex)
 	}
