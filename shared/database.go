@@ -158,3 +158,69 @@ func GetOldTracks(includePath string, exludePaths []string, stamp string) []int 
 
 	return nil
 }
+
+func RegisterDevice(deviceID string) {
+	_, err := Database.Exec("INSERT INTO DeVice (DV_id, DV_Alias, DV_LastActive) VALUES (?,null, CURRENT_TIMESTAMP) ON DUPLICATE KEY UPDATE DV_LastActive=CURRENT_TIMESTAMP;", deviceID)
+	if err != nil {
+		log.Println("DB Error registerDevice:", err)
+	}
+}
+
+func UpdateActualPlaying(deviceID, searching string) {
+	_, err := Database.Exec("CALL spUpdateActualPlaying(?,?);", deviceID, searching)
+	if err != nil {
+		log.Println("DB Error updateActualPlaying:", err)
+	}
+}
+
+func GetNextFileName(deviceID string) (FileName string) {
+	if getShuffleStatus(deviceID) {
+		err := Database.QueryRow("SELECT fnGetRandomTrackFilename(?);", deviceID).Scan(&FileName)
+		if err != nil {
+			log.Println("DB Error shuffle getNextFileName:", err)
+		}
+	} else {
+		err := Database.QueryRow("SELECT fnGetNextTrackFilename(?);", deviceID).Scan(&FileName)
+		if err != nil {
+			log.Println("DB Error nonshuffle getNextFileName:", err)
+		}
+	}
+
+	return
+}
+
+func GetPlayingInfo(deviceID string) (Artist, Album, Trackname string) {
+	err := Database.QueryRow("SELECT AT_Name, AM_Name, TK_Name FROM vTrackInfo INNER JOIN DeVice ON DV_LastTKid = TK_id WHERE DV_id = ?;", deviceID).Scan(&Artist, &Album, &Trackname)
+	if err != nil {
+		log.Println("DB Error getPlayingInfo:", err)
+	}
+
+	Artist = strings.TrimSpace(Artist)
+	Album = strings.TrimSpace(Album)
+	Trackname = strings.TrimSpace(Trackname)
+
+	return
+}
+
+func SwitchShuffle(deviceID string, shuffle bool) {
+	shuffleBit := 0
+
+	if shuffle {
+		shuffleBit = 1
+	}
+
+	_, err := Database.Exec("UPDATE DeVice SET DV_Shuffle = ? WHERE DV_id = ?;", shuffleBit, deviceID)
+	if err != nil {
+		log.Println("DB Error switchShuffle:", err)
+	}
+}
+
+func getShuffleStatus(deviceID string) bool {
+	var shuffleBit int
+	err := Database.QueryRow("SELECT DV_Shuffle FROM DeVice WHERE DV_id = ?", deviceID).Scan(&shuffleBit)
+	if err != nil {
+		log.Println("DB Error deviceShuffle:", err)
+		return false
+	}
+	return shuffleBit == 1
+}

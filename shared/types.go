@@ -32,6 +32,7 @@ type ScannerConfiguration struct {
 	Extractors             map[int]string         `json:"tagExtractors"`
 }
 
+// TrackInfo structure to hold informations about a track
 type TrackInfo struct {
 	FileName   string
 	Track      string
@@ -42,11 +43,13 @@ type TrackInfo struct {
 	Found      bool
 }
 
+// ScannerInfo structure to hold config values for a scanner task
 type ScannerInfo struct {
 	ActualConf ScannerConfiguration
 	ConfIndex  int
 }
 
+// ScanFileInfo structure to hold values for the task of get infos from a file
 type ScanFileInfo struct {
 	V         *nfs.Target
 	ConfIndex int
@@ -55,6 +58,7 @@ type ScanFileInfo struct {
 	Deep      int
 }
 
+// DBJob helper structure for db tasks
 type DBJob struct {
 	JobType string
 	Track   TrackInfo

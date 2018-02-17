@@ -42,6 +42,7 @@ CREATE TABLE IF NOT EXISTS `DeVice` (
   `DV_id` varchar(250) NOT NULL,
   `DV_Alias` varchar(500) DEFAULT NULL,
   `DV_LastTKid` int(11) unsigned DEFAULT NULL,
+  `DV_Shuffle` tinyint(1) NOT NULL DEFAULT '0',
   `DV_LastActive` timestamp NOT NULL DEFAULT CURRENT_TIMESTAMP,
   PRIMARY KEY (`DV_id`),
   KEY `FK_DeVice_TracK` (`DV_LastTKid`),
@@ -105,6 +106,34 @@ BEGIN
 	DECLARE PlayCount INT DEFAULT NULL;
 	DECLARE back VARCHAR(2000) CHARSET utf8 DEFAULT NULL;
 	SELECT TK_id, AP_Playcount, TK_FileName INTO TKid, PlayCount, back FROM ActualPlaying INNER JOIN TracK ON AP_TK_id = TK_id WHERE AP_DV_id = deviceid ORDER BY AP_Playcount, AP_Sort, AP_TK_id LIMIT 1;
+	IF TKid IS NOT NULL THEN
+	BEGIN
+		UPDATE ActualPlaying SET AP_Playcount =  PlayCount + 1 WHERE AP_DV_id = deviceid AND AP_TK_id = TKid;
+		UPDATE DeVice SET DV_LastTKid = TKid WHERE DV_id = deviceid;
+		RETURN back;
+	END;
+	ELSE
+	BEGIN
+		RETURN '';
+	END;
+	END IF;
+END//
+DELIMITER ;
+
+-- Exportiere Struktur von Funktion radiogo.fnGetRandomTrackFilename
+DROP FUNCTION IF EXISTS `fnGetRandomTrackFilename`;
+DELIMITER //
+CREATE DEFINER=`radiogo`@`%` FUNCTION `fnGetRandomTrackFilename`(
+	`deviceid` VARCHAR(250)
+) RETURNS varchar(2000) CHARSET utf8
+    MODIFIES SQL DATA
+BEGIN
+	DECLARE MinPC INT DEFAULT NULL;
+	DECLARE TKid INT DEFAULT NULL;
+	DECLARE PlayCount INT DEFAULT NULL;
+	DECLARE back VARCHAR(2000) CHARSET utf8 DEFAULT NULL;
+	SELECT MIN(AP_Playcount) INTO MinPC FROM ActualPlaying WHERE AP_DV_id = deviceid;
+	SELECT TK_id, AP_Playcount, TK_FileName INTO TKid, PlayCount, back FROM ActualPlaying INNER JOIN TracK ON AP_TK_id = TK_id WHERE AP_Playcount = MinPC AND AP_DV_id = deviceid ORDER BY RAND() LIMIT 1;
 	IF TKid IS NOT NULL THEN
 	BEGIN
 		UPDATE ActualPlaying SET AP_Playcount =  PlayCount + 1 WHERE AP_DV_id = deviceid AND AP_TK_id = TKid;

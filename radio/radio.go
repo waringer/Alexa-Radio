@@ -78,7 +78,7 @@ func runAlexa(apps map[string]interface{}, ip, port string) {
 
 func audioHandler(echoReq *alexa.EchoRequest, echoResp *alexa.EchoResponse) {
 	log.Printf("----> Audio Request Typ %s empfangen, UserID %s\n", echoReq.Request.Type, echoReq.Session.User.UserID)
-	registerDevice(echoReq.Context.System.Device.DeviceId)
+	shared.RegisterDevice(echoReq.Context.System.Device.DeviceId)
 
 	switch echoReq.Request.Type {
 	case "AudioPlayer.PlaybackStarted":
@@ -88,7 +88,7 @@ func audioHandler(echoReq *alexa.EchoRequest, echoResp *alexa.EchoResponse) {
 	case "AudioPlayer.PlaybackFinished":
 		log.Printf("type AudioPlayer.PlaybackFinished")
 	case "AudioPlayer.PlaybackNearlyFinished":
-		nextFileName := getNextFileName(echoReq.Context.System.Device.DeviceId)
+		nextFileName := shared.GetNextFileName(echoReq.Context.System.Device.DeviceId)
 		if nextFileName != "" {
 			directive := makeAudioPlayDirective(nextFileName)
 			log.Println("URL:", directive.AudioItem.Stream.Url)
@@ -102,14 +102,50 @@ func audioHandler(echoReq *alexa.EchoRequest, echoResp *alexa.EchoResponse) {
 
 func infoHandler(echoReq *alexa.EchoRequest, echoResp *alexa.EchoResponse) {
 	log.Printf("----> Info Request Typ %s empfangen, UserID %s\n", echoReq.Request.Type, echoReq.Session.User.UserID)
-	registerDevice(echoReq.Context.System.Device.DeviceId)
+	shared.RegisterDevice(echoReq.Context.System.Device.DeviceId)
 }
 
 func radioHandler(echoReq *alexa.EchoRequest, echoResp *alexa.EchoResponse) {
 	log.Printf("----> Request für Intent %s empfangen, UserID %s\n", echoReq.Request.Intent.Name, echoReq.Session.User.UserID)
-	registerDevice(echoReq.Context.System.Device.DeviceId)
+	shared.RegisterDevice(echoReq.Context.System.Device.DeviceId)
 
 	switch echoReq.Request.Intent.Name {
+	case "AMAZON.ShuffleOnIntent":
+		shared.SwitchShuffle(echoReq.Context.System.Device.DeviceId, true)
+		log.Printf("ShuffleOnIntent intent")
+
+		//todo response
+		//speech := fmt.Sprint(`<speak>`)
+		//card := fmt.Sprint("Shuffle ist jetzt an")
+		//speech = fmt.Sprintf("%s%s</speak>", speech, card)
+	case "AMAZON.ShuffleOffIntent":
+		shared.SwitchShuffle(echoReq.Context.System.Device.DeviceId, false)
+		log.Printf("ShuffleOffIntent intent")
+
+		//todo response
+		//speech := fmt.Sprint(`<speak>`)
+		//card := fmt.Sprint("Shuffle ist jetzt aus")
+		//speech = fmt.Sprintf("%s%s</speak>", speech, card)
+	case "AMAZON.StartOverIntent":
+		//todo implement
+		speech := fmt.Sprint(`<speak>`)
+		card := fmt.Sprint("Stör mich jetzt nicht, ich hab zu tun!")
+		speech = fmt.Sprintf("%s%s</speak>", speech, card)
+	case "AMAZON.RepeatIntent":
+		//todo implement
+		speech := fmt.Sprint(`<speak>`)
+		card := fmt.Sprint("Stör mich jetzt nicht, ich hab zu tun!")
+		speech = fmt.Sprintf("%s%s</speak>", speech, card)
+	case "AMAZON.LoopOnIntent":
+		//todo implement
+		speech := fmt.Sprint(`<speak>`)
+		card := fmt.Sprint("Stör mich jetzt nicht, ich hab zu tun!")
+		speech = fmt.Sprintf("%s%s</speak>", speech, card)
+	case "AMAZON.LoopOffIntent":
+		//todo implement
+		speech := fmt.Sprint(`<speak>`)
+		card := fmt.Sprint("Stör mich jetzt nicht, ich hab zu tun!")
+		speech = fmt.Sprintf("%s%s</speak>", speech, card)
 	case "AMAZON.PauseIntent":
 		Directive := alexa.EchoDirective{Type: "AudioPlayer.Stop"}
 		echoResp.Response.Directives = append(echoResp.Response.Directives, Directive)
@@ -121,7 +157,7 @@ func radioHandler(echoReq *alexa.EchoRequest, echoResp *alexa.EchoResponse) {
 		echoResp.Response.Directives = append(echoResp.Response.Directives, Directive)
 		log.Printf("stop intent")
 	case "AMAZON.NextIntent":
-		nextFileName := getNextFileName(echoReq.Context.System.Device.DeviceId)
+		nextFileName := shared.GetNextFileName(echoReq.Context.System.Device.DeviceId)
 		if nextFileName != "" {
 			directive := makeAudioPlayDirective(nextFileName)
 			log.Println("URL:", directive.AudioItem.Stream.Url)
@@ -133,7 +169,7 @@ func radioHandler(echoReq *alexa.EchoRequest, echoResp *alexa.EchoResponse) {
 	case "CurrentlyPlaying":
 		log.Printf("CurrentlyPlaying intent")
 
-		Artist, Album, Track := getPlayingInfo(echoReq.Context.System.Device.DeviceId)
+		Artist, Album, Track := shared.GetPlayingInfo(echoReq.Context.System.Device.DeviceId)
 		speech := fmt.Sprint(`<speak>`)
 		card := ""
 
@@ -166,7 +202,7 @@ func radioHandler(echoReq *alexa.EchoRequest, echoResp *alexa.EchoResponse) {
 		fallthrough
 	case "ResumePlay":
 		log.Printf("ResumePlay intent")
-		nextFileName := getNextFileName(echoReq.Context.System.Device.DeviceId)
+		nextFileName := shared.GetNextFileName(echoReq.Context.System.Device.DeviceId)
 		if nextFileName != "" {
 			directive := makeAudioPlayDirective(nextFileName)
 			log.Println("URL:", directive.AudioItem.Stream.Url)
@@ -192,8 +228,8 @@ func radioHandler(echoReq *alexa.EchoRequest, echoResp *alexa.EchoResponse) {
 		log.Println("====>", SearchString)
 
 		if SearchString != "" {
-			updateActualPlaying(echoReq.Context.System.Device.DeviceId, SearchString)
-			nextFileName := getNextFileName(echoReq.Context.System.Device.DeviceId)
+			shared.UpdateActualPlaying(echoReq.Context.System.Device.DeviceId, SearchString)
+			nextFileName := shared.GetNextFileName(echoReq.Context.System.Device.DeviceId)
 			if nextFileName != "" {
 				directive := makeAudioPlayDirective(nextFileName)
 				log.Println("URL:", directive.AudioItem.Stream.Url)
@@ -241,40 +277,4 @@ func makeAudioPlayDirective(fileName string) alexa.EchoDirective {
 				Url:                  shared.UrlEncode(fileName),
 				Token:                fmt.Sprintf("NMP-%s", time.Now().Format("20060102T150405999999")),
 				OffsetInMilliseconds: 0}}}
-}
-
-func registerDevice(deviceID string) {
-	_, err := shared.Database.Exec("INSERT INTO DeVice (DV_id, DV_Alias, DV_LastActive) VALUES (?,null, CURRENT_TIMESTAMP) ON DUPLICATE KEY UPDATE DV_LastActive=CURRENT_TIMESTAMP;", deviceID)
-	if err != nil {
-		log.Println("DB Error registerDevice:", err)
-	}
-}
-
-func updateActualPlaying(deviceID, searching string) {
-	_, err := shared.Database.Exec("CALL spUpdateActualPlaying(?,?);", deviceID, searching)
-	if err != nil {
-		log.Println("DB Error updateActualPlaying:", err)
-	}
-}
-
-func getNextFileName(deviceID string) (FileName string) {
-	err := shared.Database.QueryRow("SELECT fnGetNextTrackFilename(?);", deviceID).Scan(&FileName)
-	if err != nil {
-		log.Println("DB Error getNextFileName:", err)
-	}
-
-	return
-}
-
-func getPlayingInfo(deviceID string) (Artist, Album, Trackname string) {
-	err := shared.Database.QueryRow("SELECT AT_Name, AM_Name, TK_Name FROM vTrackInfo INNER JOIN DeVice ON DV_LastTKid = TK_id WHERE DV_id = ?;", deviceID).Scan(&Artist, &Album, &Trackname)
-	if err != nil {
-		log.Println("DB Error getPlayingInfo:", err)
-	}
-
-	Artist = strings.TrimSpace(Artist)
-	Album = strings.TrimSpace(Album)
-	Trackname = strings.TrimSpace(Trackname)
-
-	return
 }
