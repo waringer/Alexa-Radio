@@ -8,10 +8,17 @@ import (
 	"strings"
 	"time"
 
+	"../shared"
+
 	"github.com/codegangsta/negroni"
 	_ "github.com/go-sql-driver/mysql"
 	"github.com/gorilla/mux"
 	alexa "github.com/waringer/go-alexa/skillserver"
+)
+
+var (
+	buildstamp string
+	githash    string
 )
 
 func main() {
@@ -25,35 +32,35 @@ func main() {
 		os.Exit(0)
 	}
 
-	Config, err := loadConfig(*ConfFile)
+	Config, err := shared.LoadConfig(*ConfFile)
 	if err != nil {
 		log.Println("can't read conf file", *ConfFile)
-		saveConfig(Config, *ConfFile)
+		shared.SaveConfig(Config, *ConfFile)
 	}
-	conf = Config
+	shared.Conf = Config
 
-	if conf.AmazonAppID == "" {
+	if shared.Conf.AmazonAppID == "" {
 		log.Fatalln("Amazon AppID fehlt!")
 	}
 
 	log.Printf("Alexa-Radio startet %s - %s", buildstamp, githash)
 
-	if conf.PidFile != "" {
-		writePid(conf.PidFile)
+	if shared.Conf.PidFile != "" {
+		shared.WritePid(shared.Conf.PidFile)
 	}
 
 	//check db
-	db, err := openDB(conf)
+	db, err := shared.OpenDB(shared.Conf)
 	if err != nil {
 		log.Fatalln("DB Fehler : ", err.Error())
 	}
 	defer db.Close()
 
-	database = db
+	shared.Database = db
 
 	var Applications = map[string]interface{}{
 		"/echo/radio": alexa.EchoApplication{
-			AppID:              conf.AmazonAppID,
+			AppID:              shared.Conf.AmazonAppID,
 			OnIntent:           radioHandler,
 			OnLaunch:           radioHandler,
 			OnSessionEnded:     infoHandler,
@@ -62,7 +69,7 @@ func main() {
 		},
 	}
 
-	runAlexa(Applications, conf.BindingIP, fmt.Sprintf("%d", conf.BindingPort))
+	runAlexa(Applications, shared.Conf.BindingIP, fmt.Sprintf("%d", shared.Conf.BindingPort))
 }
 
 func runAlexa(apps map[string]interface{}, ip, port string) {
@@ -236,27 +243,27 @@ func makeAudioPlayDirective(FileName string) alexa.EchoDirective {
 		PlayBehavior: "REPLACE_ALL",
 		AudioItem: &alexa.EchoAudioItem{
 			Stream: alexa.EchoStream{
-				Url:                  urlEncode(FileName),
+				Url:                  shared.UrlEncode(FileName),
 				Token:                fmt.Sprintf("NMP-%s", time.Now().Format("20060102T150405999999")),
 				OffsetInMilliseconds: 0}}}
 }
 
 func registerDevice(DeviceID string) {
-	_, err := database.Exec("INSERT INTO DeVice (DV_id, DV_Alias, DV_LastActive) VALUES (?,null, CURRENT_TIMESTAMP) ON DUPLICATE KEY UPDATE DV_LastActive=CURRENT_TIMESTAMP;", DeviceID)
+	_, err := shared.Database.Exec("INSERT INTO DeVice (DV_id, DV_Alias, DV_LastActive) VALUES (?,null, CURRENT_TIMESTAMP) ON DUPLICATE KEY UPDATE DV_LastActive=CURRENT_TIMESTAMP;", DeviceID)
 	if err != nil {
 		log.Println("DB Error registerDevice:", err)
 	}
 }
 
 func updateActualPlaying(DeviceID, Searching string) {
-	_, err := database.Exec("CALL spUpdateActualPlaying(?,?);", DeviceID, Searching)
+	_, err := shared.Database.Exec("CALL spUpdateActualPlaying(?,?);", DeviceID, Searching)
 	if err != nil {
 		log.Println("DB Error updateActualPlaying:", err)
 	}
 }
 
 func getNextFileName(DeviceID string) (FileName string) {
-	err := database.QueryRow("SELECT fnGetNextTrackFilename(?);", DeviceID).Scan(&FileName)
+	err := shared.Database.QueryRow("SELECT fnGetNextTrackFilename(?);", DeviceID).Scan(&FileName)
 	if err != nil {
 		log.Println("DB Error getNextFileName:", err)
 	}
@@ -265,7 +272,7 @@ func getNextFileName(DeviceID string) (FileName string) {
 }
 
 func getPlayingInfo(DeviceID string) (Artist, Album, Trackname string) {
-	err := database.QueryRow("SELECT AT_Name, AM_Name, TK_Name FROM vTrackInfo INNER JOIN DeVice ON DV_LastTKid = TK_id WHERE DV_id = ?;", DeviceID).Scan(&Artist, &Album, &Trackname)
+	err := shared.Database.QueryRow("SELECT AT_Name, AM_Name, TK_Name FROM vTrackInfo INNER JOIN DeVice ON DV_LastTKid = TK_id WHERE DV_id = ?;", DeviceID).Scan(&Artist, &Album, &Trackname)
 	if err != nil {
 		log.Println("DB Error getPlayingInfo:", err)
 	}

@@ -15,48 +15,27 @@ import (
 	"sync"
 	"time"
 
+	"../shared"
+
 	"github.com/dhowden/tag"
 	_ "github.com/go-sql-driver/mysql"
 	"github.com/vmware/go-nfs-client/nfs"
 	"github.com/vmware/go-nfs-client/nfs/rpc"
 )
 
-type trackInfo struct {
-	fileName   string
-	track      string
-	trackIndex int
-	artist     string
-	album      string
-	albumIndex int
-	found      bool
-}
+var (
+	buildstamp string
+	githash    string
 
-type scannerInfo struct {
-	actualConf ScannerConfiguration
-	confIndex  int
-}
+	dbJobs      = make(chan shared.DBJob, 500)
+	fileJobs    = make(chan shared.ScanFileInfo, 1000)
+	scannerJobs = make(chan shared.ScannerInfo, 50)
+	runningJobs = make(chan bool, 10000)
+	timeStampDB = ""
 
-type scanFileInfo struct {
-	v         *nfs.Target
-	confIndex int
-	filename  string
-	basePath  string
-	deep      int
-}
-
-type dbJob struct {
-	jobType string
-	track   trackInfo
-}
-
-var dbJobs = make(chan dbJob, 500)
-var fileJobs = make(chan scanFileInfo, 1000)
-var scannerJobs = make(chan scannerInfo, 50)
-var runningJobs = make(chan bool, 10000)
-var timeStampDB = ""
-
-var updateDB = flag.Bool("u", false, "update db entrys if exists")
-var simulateOnly = flag.Bool("s", false, "only simulate - no change in the db")
+	updateDB     = flag.Bool("u", false, "update db entrys if exists")
+	simulateOnly = flag.Bool("s", false, "only simulate - no change in the db")
+)
 
 func main() {
 	ConfFile := flag.String("c", "radio.conf", "config file to use")
@@ -84,26 +63,26 @@ func main() {
 		defer pprof.StopCPUProfile()
 	}
 
-	Config, err := loadConfig(*ConfFile)
+	Config, err := shared.LoadConfig(*ConfFile)
 	if err != nil {
 		log.Fatalln("can't read conf file", *ConfFile)
 	}
-	conf = Config
+	shared.Conf = Config
 
 	log.Printf("> Alexa-Radio Scanner startet %s - %s", buildstamp, githash)
 
 	//check db
-	db, err := openDB(conf)
+	db, err := shared.OpenDB(shared.Conf)
 	if err != nil {
 		log.Fatalln("DB Fehler : ", err.Error())
 	}
 	defer db.Close()
 
-	database = db
-	timeStampDB = getCurrentDBTimestamp()
+	shared.Database = db
+	timeStampDB = shared.GetCurrentDBTimestamp()
 
 	if *EmptyDB {
-		emptyDB()
+		shared.EmptyDB()
 	}
 
 	var wgDB sync.WaitGroup
@@ -125,10 +104,10 @@ func main() {
 		go scannerWorker(&wg)
 	}
 
-	for confIndex, actualConf := range conf.Scanner {
-		scannerJobs <- scannerInfo{
-			actualConf: actualConf,
-			confIndex:  confIndex,
+	for confIndex, actualConf := range shared.Conf.Scanner {
+		scannerJobs <- shared.ScannerInfo{
+			ActualConf: actualConf,
+			ConfIndex:  confIndex,
 		}
 		time.Sleep(100 * time.Millisecond) // give job some time to start
 	}
@@ -156,7 +135,7 @@ func main() {
 	}
 
 	log.Println("> remove old entrys")
-	for _, actualConf := range conf.Scanner {
+	for _, actualConf := range shared.Conf.Scanner {
 		startRemove(actualConf)
 	}
 
@@ -178,26 +157,26 @@ func main() {
 	}
 }
 
-func startNFSScanner(scannerConf scannerInfo) {
+func startNFSScanner(scannerConf shared.ScannerInfo) {
 	runningJobs <- true
 	defer func() { _ = <-runningJobs }()
 
 	log.Println("=> using nfs for file access")
 
-	nfsMount, err := nfs.DialMount(scannerConf.actualConf.NFSServer)
+	nfsMount, err := nfs.DialMount(scannerConf.ActualConf.NFSServer)
 	defer nfsMount.Close()
 	if err != nil {
 		log.Fatalf("unable to dial MOUNT service: %v", err)
 	}
 
-	nfsTarget, err := nfsMount.Mount(scannerConf.actualConf.NFSShare, rpc.AuthNull)
+	nfsTarget, err := nfsMount.Mount(scannerConf.ActualConf.NFSShare, rpc.AuthNull)
 	if err != nil {
 		defer nfsTarget.Close()
 		log.Fatalf("unable to mount volume: %v", err)
 	}
 
-	for _, actualPath := range scannerConf.actualConf.IncludePaths {
-		scanNFSPath(nfsTarget, scannerConf.confIndex, actualPath, 0)
+	for _, actualPath := range scannerConf.ActualConf.IncludePaths {
+		scanNFSPath(nfsTarget, scannerConf.ConfIndex, actualPath, 0)
 	}
 }
 
@@ -218,26 +197,26 @@ func scanNFSPath(v *nfs.Target, confIndex int, path string, deep int) {
 				scanNFSPath(v, confIndex, fileName, deep+1)
 			case isValidExtension(confIndex, dir.FileName):
 				//scanFile(v, confIndex, fileName, "", deep)
-				fileJobs <- scanFileInfo{
-					v:         v,
-					confIndex: confIndex,
-					filename:  fileName,
-					basePath:  "",
-					deep:      deep,
+				fileJobs <- shared.ScanFileInfo{
+					V:         v,
+					ConfIndex: confIndex,
+					Filename:  fileName,
+					BasePath:  "",
+					Deep:      deep,
 				}
 			}
 		}
 	}
 }
 
-func startScanner(scannerConf scannerInfo) {
+func startScanner(scannerConf shared.ScannerInfo) {
 	runningJobs <- true
 	defer func() { _ = <-runningJobs }()
 
 	log.Println("=> using local filesystem for file access")
 
-	for _, actualPath := range scannerConf.actualConf.IncludePaths {
-		scanPath(scannerConf.confIndex, actualPath, scannerConf.actualConf.LocalBasePath, 0)
+	for _, actualPath := range scannerConf.ActualConf.IncludePaths {
+		scanPath(scannerConf.ConfIndex, actualPath, scannerConf.ActualConf.LocalBasePath, 0)
 	}
 }
 
@@ -258,76 +237,76 @@ func scanPath(confIndex int, path string, basePath string, deep int) {
 				scanPath(confIndex, fileName, basePath, deep+1)
 			case isValidExtension(confIndex, dir.Name()):
 				//scanFile(nil, confIndex, fileName, basePath, deep)
-				fileJobs <- scanFileInfo{
-					v:         nil,
-					confIndex: confIndex,
-					filename:  fileName,
-					basePath:  basePath,
-					deep:      deep,
+				fileJobs <- shared.ScanFileInfo{
+					V:         nil,
+					ConfIndex: confIndex,
+					Filename:  fileName,
+					BasePath:  basePath,
+					Deep:      deep,
 				}
 			}
 		}
 	}
 }
 
-func scanFile(confScanFile scanFileInfo) {
+func scanFile(confScanFile shared.ScanFileInfo) {
 	runningJobs <- true
 	defer func() { _ = <-runningJobs }()
 
-	if existsInDB(confScanFile.filename) {
+	if shared.ExistsInDB(confScanFile.Filename) {
 		if *updateDB {
-			dbJobs <- dbJob{
-				jobType: "update",
-				track:   getTrackInfo(confScanFile),
+			dbJobs <- shared.DBJob{
+				JobType: "update",
+				Track:   getTrackInfo(confScanFile),
 			}
 		} else {
-			dbJobs <- dbJob{
-				jobType: "touch",
-				track: trackInfo{
-					fileName: confScanFile.filename,
-					found:    true,
+			dbJobs <- shared.DBJob{
+				JobType: "touch",
+				Track: shared.TrackInfo{
+					FileName: confScanFile.Filename,
+					Found:    true,
 				},
 			}
 		}
 	} else {
-		dbJobs <- dbJob{
-			jobType: "insert",
-			track:   getTrackInfo(confScanFile),
+		dbJobs <- shared.DBJob{
+			JobType: "insert",
+			Track:   getTrackInfo(confScanFile),
 		}
 	}
 }
 
-func getTrackInfo(confScanFile scanFileInfo) trackInfo {
-	if conf.Scanner[confScanFile.confIndex].UseTags == true {
-		trackinfo := getTags(confScanFile.v, confScanFile.basePath, confScanFile.filename)
-		if !trackinfo.found {
-			log.Println("==> Using path matching for deep:", confScanFile.deep, confScanFile.filename)
-			trackinfo = parseFileName(confScanFile.filename, conf.Scanner[confScanFile.confIndex].Extractors[confScanFile.deep])
+func getTrackInfo(confScanFile shared.ScanFileInfo) shared.TrackInfo {
+	if shared.Conf.Scanner[confScanFile.ConfIndex].UseTags == true {
+		trackinfo := getTags(confScanFile.V, confScanFile.BasePath, confScanFile.Filename)
+		if !trackinfo.Found {
+			log.Println("==> Using path matching for deep:", confScanFile.Deep, confScanFile.Filename)
+			trackinfo = parseFileName(confScanFile.Filename, shared.Conf.Scanner[confScanFile.ConfIndex].Extractors[confScanFile.Deep])
 		}
 		return trackinfo
 	}
 
-	log.Println("==> Using path matching for deep:", confScanFile.deep, confScanFile.filename)
-	return parseFileName(confScanFile.filename, conf.Scanner[confScanFile.confIndex].Extractors[confScanFile.deep])
+	log.Println("==> Using path matching for deep:", confScanFile.Deep, confScanFile.Filename)
+	return parseFileName(confScanFile.Filename, shared.Conf.Scanner[confScanFile.ConfIndex].Extractors[confScanFile.Deep])
 }
 
-func parseFileName(fileName string, regEx string) trackInfo {
+func parseFileName(fileName string, regEx string) shared.TrackInfo {
 	tags := getParams(regEx, fileName)
 	albumid, _ := strconv.Atoi(tags["albumid"])
 	trackid, _ := strconv.Atoi(tags["trackid"])
 
-	return trackInfo{
-		fileName:   fileName,
-		track:      strings.TrimSpace(tags["track"]),
-		trackIndex: trackid,
-		artist:     strings.TrimSpace(tags["artist"]),
-		album:      strings.TrimSpace(tags["album"]),
-		albumIndex: albumid,
-		found:      true,
+	return shared.TrackInfo{
+		FileName:   fileName,
+		Track:      strings.TrimSpace(tags["track"]),
+		TrackIndex: trackid,
+		Artist:     strings.TrimSpace(tags["artist"]),
+		Album:      strings.TrimSpace(tags["album"]),
+		AlbumIndex: albumid,
+		Found:      true,
 	}
 }
 
-func getTags(v *nfs.Target, basePath string, fileName string) trackInfo {
+func getTags(v *nfs.Target, basePath string, fileName string) shared.TrackInfo {
 	var fileHandle *os.File
 
 	if v != nil {
@@ -368,26 +347,26 @@ func getTags(v *nfs.Target, basePath string, fileName string) trackInfo {
 		} else {
 			trackid, _ := m.Track()
 
-			return trackInfo{
-				fileName:   fileName,
-				track:      strings.TrimSpace(m.Title()),
-				trackIndex: trackid,
-				artist:     strings.TrimSpace(m.Artist()),
-				album:      strings.TrimSpace(m.Album()),
-				albumIndex: m.Year(),
-				found:      true,
+			return shared.TrackInfo{
+				FileName:   fileName,
+				Track:      strings.TrimSpace(m.Title()),
+				TrackIndex: trackid,
+				Artist:     strings.TrimSpace(m.Artist()),
+				Album:      strings.TrimSpace(m.Album()),
+				AlbumIndex: m.Year(),
+				Found:      true,
 			}
 		}
 	}
 
-	return trackInfo{
-		fileName:   fileName,
-		track:      "",
-		trackIndex: 0,
-		artist:     "",
-		album:      "",
-		albumIndex: 0,
-		found:      false,
+	return shared.TrackInfo{
+		FileName:   fileName,
+		Track:      "",
+		TrackIndex: 0,
+		Artist:     "",
+		Album:      "",
+		AlbumIndex: 0,
+		Found:      false,
 	}
 }
 
@@ -407,7 +386,7 @@ func getParams(regEx, fileName string) (paramsMap map[string]string) {
 func isValidExtension(confIndex int, fileName string) bool {
 	fileName = strings.ToLower(strings.TrimSpace(fileName))
 
-	for ext := range conf.Scanner[confIndex].ValidExtensions {
+	for ext := range shared.Conf.Scanner[confIndex].ValidExtensions {
 		if strings.HasSuffix(fileName, strings.ToLower(ext)) {
 			return true
 		}
@@ -418,7 +397,7 @@ func isValidExtension(confIndex int, fileName string) bool {
 }
 
 func isExcludedPath(confIndex int, path string) bool {
-	for _, excludedPath := range conf.Scanner[confIndex].ExcludePaths {
+	for _, excludedPath := range shared.Conf.Scanner[confIndex].ExcludePaths {
 		if strings.HasPrefix(path, excludedPath) {
 			log.Println("=> Excluded path:", path)
 			return true
@@ -428,18 +407,18 @@ func isExcludedPath(confIndex int, path string) bool {
 	return false
 }
 
-func startRemove(actualConf ScannerConfiguration) {
+func startRemove(actualConf shared.ScannerConfiguration) {
 	if actualConf.RemoveNoLongerExisting {
 		for _, actualPath := range actualConf.IncludePaths {
-			trackIDs := getOldTracks(actualPath, actualConf.ExcludePaths, timeStampDB)
+			trackIDs := shared.GetOldTracks(actualPath, actualConf.ExcludePaths, timeStampDB)
 			if len(trackIDs) != 0 {
 				log.Println("=> found old with ids:", trackIDs)
 				for _, trackID := range trackIDs {
-					dbJobs <- dbJob{
-						jobType: "remove",
-						track: trackInfo{
-							trackIndex: trackID,
-							found:      true,
+					dbJobs <- shared.DBJob{
+						JobType: "remove",
+						Track: shared.TrackInfo{
+							TrackIndex: trackID,
+							Found:      true,
 						},
 					}
 				}
@@ -451,34 +430,42 @@ func startRemove(actualConf ScannerConfiguration) {
 func dbWorker(wg *sync.WaitGroup) {
 	for job := range dbJobs {
 		if !*simulateOnly {
-			switch job.jobType {
+			switch job.JobType {
 			case "insert":
-				insertTrack(job.track)
+				runningJobs <- true
+				shared.InsertTrack(job.Track)
+				_ = <-runningJobs
 			case "touch":
-				touchTrack(job.track.fileName)
+				runningJobs <- true
+				shared.TouchTrack(job.Track.FileName)
+				_ = <-runningJobs
 			case "update":
-				updateTrack(job.track)
+				runningJobs <- true
+				shared.UpdateTrack(job.Track)
+				_ = <-runningJobs
 			case "remove":
-				removeTrackDB(job.track.trackIndex)
+				runningJobs <- true
+				shared.RemoveTrackDB(job.Track.TrackIndex)
+				_ = <-runningJobs
 			}
 		} else {
-			switch job.jobType {
+			switch job.JobType {
 			case "insert":
-				log.Println("DB insert of track filename:", job.track.fileName)
-				log.Println("DB insert of track:", job.track.trackIndex, job.track.track)
-				log.Println("DB insert of artist:", job.track.artist)
-				log.Println("DB insert of album:", job.track.albumIndex, job.track.album)
+				log.Println("DB insert of track filename:", job.Track.FileName)
+				log.Println("DB insert of track:", job.Track.TrackIndex, job.Track.Track)
+				log.Println("DB insert of artist:", job.Track.Artist)
+				log.Println("DB insert of album:", job.Track.AlbumIndex, job.Track.Album)
 			case "touch":
-				log.Println("DB touch of track filename:", job.track.fileName)
+				log.Println("DB touch of track filename:", job.Track.FileName)
 			case "update":
-				log.Println("DB update of track filename:", job.track.fileName)
-				log.Println("DB update of track:", job.track.trackIndex, job.track.track)
-				log.Println("DB update of artist:", job.track.artist)
-				log.Println("DB update of album:", job.track.albumIndex, job.track.album)
+				log.Println("DB update of track filename:", job.Track.FileName)
+				log.Println("DB update of track:", job.Track.TrackIndex, job.Track.Track)
+				log.Println("DB update of artist:", job.Track.Artist)
+				log.Println("DB update of album:", job.Track.AlbumIndex, job.Track.Album)
 			case "remove":
-				log.Println("DB remove of track:", job.track.trackIndex)
+				log.Println("DB remove of track:", job.Track.TrackIndex)
 			}
-		
+
 		}
 	}
 	wg.Done()
@@ -486,7 +473,7 @@ func dbWorker(wg *sync.WaitGroup) {
 
 func scannerWorker(wg *sync.WaitGroup) {
 	for job := range scannerJobs {
-		switch job.actualConf.FileAccessMode {
+		switch job.ActualConf.FileAccessMode {
 		case "nfs":
 			startNFSScanner(job)
 		default:

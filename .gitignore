@@ -7,6 +7,8 @@
 _obj
 _test
 _go
+bin
+lib
 
 # Architecture specific extensions/prefixes
 *.[568vq]
@@ -23,9 +25,5 @@ _testmain.go
 *.exe
 *.test
 *.prof
-
-lib/*
-radio
-radio.conf
-scanner
+*.conf
 
