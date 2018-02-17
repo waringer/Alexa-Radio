@@ -10,19 +10,25 @@ import (
 	_ "github.com/go-sql-driver/mysql"
 )
 
-func OpenDB(conf Configuration) (*sql.DB, error) {
-	db, err := sql.Open("mysql", fmt.Sprintf("%s:%s@tcp(%s)/%s", conf.DBUser, conf.DBPassword, conf.DBServer, conf.DBName))
+func OpenDB() error {
+	Database = nil
+	db, err := sql.Open("mysql", fmt.Sprintf("%s:%s@tcp(%s)/%s", Conf.DBUser, Conf.DBPassword, Conf.DBServer, Conf.DBName))
 	if err != nil {
-		return nil, err
+		return err
 	}
 
 	// Open doesn't open a connection. Validate DSN data:
 	err = db.Ping()
 	if err != nil {
-		return nil, err
+		return err
 	}
 
-	return db, nil
+	Database = db
+	return nil
+}
+
+func CloseDB() {
+	Database.Close()
 }
 
 func EmptyDB() {

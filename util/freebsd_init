@@ -17,11 +17,12 @@ rcvar=alexa_radio_enable
 load_rc_config $name
 
 : ${alexa_radio_enable:="NO"}
-: ${alexa_radio_flags:=""}
+: ${alexa_radio_flags:="-c /usr/local/etc/radio.conf"}
+: ${alexa_radio_log:="/var/log/alexa_radio.log"}
 
 pidfile=/var/run/alexa_radio.pid
-command="/usr/local/bin/alexa_radio"
+command="/usr/local/bin/radio"
 
-start_cmd="nohup ${command} ${alexa_radio_flags} >> /tmp/alexa_radio.log 2>&1 &"
+start_cmd="nohup ${command} ${alexa_radio_flags} >> ${alexa_radio_log} 2>&1 &"
 
 run_rc_command "$1"

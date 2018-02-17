@@ -38,15 +38,15 @@ var (
 )
 
 func main() {
-	ConfFile := flag.String("c", "radio.conf", "config file to use")
-	EmptyDB := flag.Bool("e", false, "reset db before insert new")
-	Version := flag.Bool("v", false, "prints current version and exit")
+	confFile := flag.String("c", "radio.conf", "config file to use")
+	emptyDB := flag.Bool("e", false, "reset db before insert new")
+	version := flag.Bool("v", false, "prints current version and exit")
 
 	cpuprofile := flag.String("cpuprofile", "", "write cpu profile `file`")
 	memprofile := flag.String("memprofile", "", "write memory profile to `file`")
 	flag.Parse()
 
-	if *Version {
+	if *version {
 		fmt.Println("Build:", buildstamp)
 		fmt.Println("Githash:", githash)
 		os.Exit(0)
@@ -63,25 +63,23 @@ func main() {
 		defer pprof.StopCPUProfile()
 	}
 
-	Config, err := shared.LoadConfig(*ConfFile)
+	err := shared.LoadConfig(*confFile)
 	if err != nil {
-		log.Fatalln("can't read conf file", *ConfFile)
+		log.Fatalln("can't read conf file", *confFile)
 	}
-	shared.Conf = Config
 
 	log.Printf("> Alexa-Radio Scanner startet %s - %s", buildstamp, githash)
 
 	//check db
-	db, err := shared.OpenDB(shared.Conf)
+	err = shared.OpenDB()
 	if err != nil {
 		log.Fatalln("DB Fehler : ", err.Error())
 	}
-	defer db.Close()
+	defer shared.CloseDB()
 
-	shared.Database = db
 	timeStampDB = shared.GetCurrentDBTimestamp()
 
-	if *EmptyDB {
+	if *emptyDB {
 		shared.EmptyDB()
 	}
 

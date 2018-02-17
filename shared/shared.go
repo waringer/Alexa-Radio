@@ -18,8 +18,8 @@ var (
 	Database *sql.DB
 )
 
-func SaveConfig(c Configuration, filename string) error {
-	bytes, err := json.MarshalIndent(c, "", "  ")
+func SaveConfig(filename string) error {
+	bytes, err := json.MarshalIndent(Conf, "", "  ")
 	if err != nil {
 		return err
 	}
@@ -27,7 +27,7 @@ func SaveConfig(c Configuration, filename string) error {
 	return ioutil.WriteFile(filename, bytes, 0644)
 }
 
-func LoadConfig(filename string) (Configuration, error) {
+func LoadConfig(filename string) error {
 	DefaultConf := Configuration{
 		BindingPort: 3081,
 		PidFile:     "/var/run/alexa_radio.pid",
@@ -53,27 +53,30 @@ func LoadConfig(filename string) (Configuration, error) {
 
 	bytes, err := ioutil.ReadFile(filename)
 	if err != nil {
-		return DefaultConf, err
+		Conf = DefaultConf
+		return err
 	}
 
 	err = json.Unmarshal(bytes, &DefaultConf)
 	if err != nil {
-		return Configuration{}, err
+		Conf = Configuration{}
+		return err
 	}
 
-	return DefaultConf, nil
+	Conf = DefaultConf
+	return nil
 }
 
-func WritePid(PidFile string) {
-	pid := os.Getpid()
+func WritePid() {
+	if Conf.PidFile != "" {
+		f, err := os.OpenFile(Conf.PidFile, os.O_RDWR|os.O_CREATE|os.O_TRUNC, 0600)
+		if err != nil {
+			log.Fatalf("Unable to create pid file : %v", err)
+		}
+		defer f.Close()
 
-	f, err := os.OpenFile(PidFile, os.O_RDWR|os.O_CREATE|os.O_TRUNC, 0600)
-	if err != nil {
-		log.Fatalf("Unable to create pid file : %v", err)
+		f.WriteString(fmt.Sprintf("%d", os.Getpid()))
 	}
-	defer f.Close()
-
-	f.WriteString(fmt.Sprintf("%d", pid))
 }
 
 func UrlEncode(fileName string) (URL string) {

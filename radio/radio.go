@@ -22,22 +22,21 @@ var (
 )
 
 func main() {
-	ConfFile := flag.String("c", "radio.conf", "config file to use")
-	Version := flag.Bool("v", false, "prints current version and exit")
+	confFile := flag.String("c", "radio.conf", "config file to use")
+	version := flag.Bool("v", false, "prints current version and exit")
 	flag.Parse()
 
-	if *Version {
+	if *version {
 		fmt.Println("Build:", buildstamp)
 		fmt.Println("Githash:", githash)
 		os.Exit(0)
 	}
 
-	Config, err := shared.LoadConfig(*ConfFile)
+	err := shared.LoadConfig(*confFile)
 	if err != nil {
-		log.Println("can't read conf file", *ConfFile)
-		shared.SaveConfig(Config, *ConfFile)
+		log.Println("can't read conf file", *confFile)
+		shared.SaveConfig(*confFile)
 	}
-	shared.Conf = Config
 
 	if shared.Conf.AmazonAppID == "" {
 		log.Fatalln("Amazon AppID fehlt!")
@@ -45,18 +44,14 @@ func main() {
 
 	log.Printf("Alexa-Radio startet %s - %s", buildstamp, githash)
 
-	if shared.Conf.PidFile != "" {
-		shared.WritePid(shared.Conf.PidFile)
-	}
+	shared.WritePid()
 
 	//check db
-	db, err := shared.OpenDB(shared.Conf)
+	err = shared.OpenDB()
 	if err != nil {
 		log.Fatalln("DB Fehler : ", err.Error())
 	}
-	defer db.Close()
-
-	shared.Database = db
+	defer shared.CloseDB()
 
 	var Applications = map[string]interface{}{
 		"/echo/radio": alexa.EchoApplication{
@@ -237,33 +232,33 @@ func radioHandler(echoReq *alexa.EchoRequest, echoResp *alexa.EchoResponse) {
 	}
 }
 
-func makeAudioPlayDirective(FileName string) alexa.EchoDirective {
+func makeAudioPlayDirective(fileName string) alexa.EchoDirective {
 	return alexa.EchoDirective{
 		Type:         "AudioPlayer.Play",
 		PlayBehavior: "REPLACE_ALL",
 		AudioItem: &alexa.EchoAudioItem{
 			Stream: alexa.EchoStream{
-				Url:                  shared.UrlEncode(FileName),
+				Url:                  shared.UrlEncode(fileName),
 				Token:                fmt.Sprintf("NMP-%s", time.Now().Format("20060102T150405999999")),
 				OffsetInMilliseconds: 0}}}
 }
 
-func registerDevice(DeviceID string) {
-	_, err := shared.Database.Exec("INSERT INTO DeVice (DV_id, DV_Alias, DV_LastActive) VALUES (?,null, CURRENT_TIMESTAMP) ON DUPLICATE KEY UPDATE DV_LastActive=CURRENT_TIMESTAMP;", DeviceID)
+func registerDevice(deviceID string) {
+	_, err := shared.Database.Exec("INSERT INTO DeVice (DV_id, DV_Alias, DV_LastActive) VALUES (?,null, CURRENT_TIMESTAMP) ON DUPLICATE KEY UPDATE DV_LastActive=CURRENT_TIMESTAMP;", deviceID)
 	if err != nil {
 		log.Println("DB Error registerDevice:", err)
 	}
 }
 
-func updateActualPlaying(DeviceID, Searching string) {
-	_, err := shared.Database.Exec("CALL spUpdateActualPlaying(?,?);", DeviceID, Searching)
+func updateActualPlaying(deviceID, searching string) {
+	_, err := shared.Database.Exec("CALL spUpdateActualPlaying(?,?);", deviceID, searching)
 	if err != nil {
 		log.Println("DB Error updateActualPlaying:", err)
 	}
 }
 
-func getNextFileName(DeviceID string) (FileName string) {
-	err := shared.Database.QueryRow("SELECT fnGetNextTrackFilename(?);", DeviceID).Scan(&FileName)
+func getNextFileName(deviceID string) (FileName string) {
+	err := shared.Database.QueryRow("SELECT fnGetNextTrackFilename(?);", deviceID).Scan(&FileName)
 	if err != nil {
 		log.Println("DB Error getNextFileName:", err)
 	}
@@ -271,8 +266,8 @@ func getNextFileName(DeviceID string) (FileName string) {
 	return
 }
 
-func getPlayingInfo(DeviceID string) (Artist, Album, Trackname string) {
-	err := shared.Database.QueryRow("SELECT AT_Name, AM_Name, TK_Name FROM vTrackInfo INNER JOIN DeVice ON DV_LastTKid = TK_id WHERE DV_id = ?;", DeviceID).Scan(&Artist, &Album, &Trackname)
+func getPlayingInfo(deviceID string) (Artist, Album, Trackname string) {
+	err := shared.Database.QueryRow("SELECT AT_Name, AM_Name, TK_Name FROM vTrackInfo INNER JOIN DeVice ON DV_LastTKid = TK_id WHERE DV_id = ?;", deviceID).Scan(&Artist, &Album, &Trackname)
 	if err != nil {
 		log.Println("DB Error getPlayingInfo:", err)
 	}
