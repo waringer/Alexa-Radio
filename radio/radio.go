@@ -88,11 +88,13 @@ func audioHandler(echoReq *alexa.EchoRequest, echoResp *alexa.EchoResponse) {
 	case "AudioPlayer.PlaybackFinished":
 		log.Printf("type AudioPlayer.PlaybackFinished")
 	case "AudioPlayer.PlaybackNearlyFinished":
-		nextFileName := shared.GetNextFileName(echoReq.Context.System.Device.DeviceId)
-		if nextFileName != "" {
-			directive := makeAudioPlayDirective(nextFileName)
-			log.Println("URL:", directive.AudioItem.Stream.Url)
-			echoResp.Response.Directives = append(echoResp.Response.Directives, directive)
+		if !shared.ShouldStopPlaying(echoReq.Context.System.Device.DeviceId) {
+			nextFileName := shared.GetNextFileName(echoReq.Context.System.Device.DeviceId)
+			if nextFileName != "" {
+				directive := makeAudioPlayDirective(nextFileName)
+				log.Println("URL:", directive.AudioItem.Stream.Url)
+				echoResp.Response.Directives = append(echoResp.Response.Directives, directive)
+			}
 		}
 		log.Printf("type AudioPlayer.PlaybackNearlyFinished")
 	default:
@@ -112,7 +114,7 @@ func radioHandler(echoReq *alexa.EchoRequest, echoResp *alexa.EchoResponse) {
 	switch echoReq.Request.Intent.Name {
 	case "AMAZON.ShuffleOnIntent":
 		shared.SwitchShuffle(echoReq.Context.System.Device.DeviceId, true)
-		log.Printf("ShuffleOnIntent intent")
+		log.Printf("ShuffleOn intent")
 
 		//todo response
 		//speech := fmt.Sprint(`<speak>`)
@@ -120,7 +122,7 @@ func radioHandler(echoReq *alexa.EchoRequest, echoResp *alexa.EchoResponse) {
 		//speech = fmt.Sprintf("%s%s</speak>", speech, card)
 	case "AMAZON.ShuffleOffIntent":
 		shared.SwitchShuffle(echoReq.Context.System.Device.DeviceId, false)
-		log.Printf("ShuffleOffIntent intent")
+		log.Printf("ShuffleOff intent")
 
 		//todo response
 		//speech := fmt.Sprint(`<speak>`)
@@ -131,40 +133,54 @@ func radioHandler(echoReq *alexa.EchoRequest, echoResp *alexa.EchoResponse) {
 		speech := fmt.Sprint(`<speak>`)
 		card := fmt.Sprint("Stör mich jetzt nicht, ich hab zu tun!")
 		speech = fmt.Sprintf("%s%s</speak>", speech, card)
+		log.Printf("StartOver intent")
 	case "AMAZON.RepeatIntent":
 		//todo implement
 		speech := fmt.Sprint(`<speak>`)
 		card := fmt.Sprint("Stör mich jetzt nicht, ich hab zu tun!")
 		speech = fmt.Sprintf("%s%s</speak>", speech, card)
+		log.Printf("Repeat intent")
 	case "AMAZON.LoopOnIntent":
-		//todo implement
-		speech := fmt.Sprint(`<speak>`)
-		card := fmt.Sprint("Stör mich jetzt nicht, ich hab zu tun!")
-		speech = fmt.Sprintf("%s%s</speak>", speech, card)
+		shared.SwitchLoop(echoReq.Context.System.Device.DeviceId, true)
+		log.Printf("LoopOff intent")
+
+		//todo response
+		//speech := fmt.Sprint(`<speak>`)
+		//card := fmt.Sprint("Loop ist jetzt an")
+		//speech = fmt.Sprintf("%s%s</speak>", speech, card)
 	case "AMAZON.LoopOffIntent":
-		//todo implement
-		speech := fmt.Sprint(`<speak>`)
-		card := fmt.Sprint("Stör mich jetzt nicht, ich hab zu tun!")
-		speech = fmt.Sprintf("%s%s</speak>", speech, card)
+		shared.SwitchLoop(echoReq.Context.System.Device.DeviceId, false)
+		log.Printf("LoopOff intent")
+
+		//todo response
+		//speech := fmt.Sprint(`<speak>`)
+		//card := fmt.Sprint("Loop ist jetzt aus")
+		//speech = fmt.Sprintf("%s%s</speak>", speech, card)
 	case "AMAZON.PauseIntent":
 		Directive := alexa.EchoDirective{Type: "AudioPlayer.Stop"}
 		echoResp.Response.Directives = append(echoResp.Response.Directives, Directive)
-		log.Printf("pause intent")
+		log.Printf("Pause intent")
 	case "AMAZON.CancelIntent":
-		log.Printf("cancel intent")
+		log.Printf("Cancel intent")
 	case "AMAZON.StopIntent":
 		Directive := alexa.EchoDirective{Type: "AudioPlayer.Stop"}
 		echoResp.Response.Directives = append(echoResp.Response.Directives, Directive)
-		log.Printf("stop intent")
+		log.Printf("Stop intent")
 	case "AMAZON.NextIntent":
-		nextFileName := shared.GetNextFileName(echoReq.Context.System.Device.DeviceId)
-		if nextFileName != "" {
-			directive := makeAudioPlayDirective(nextFileName)
-			log.Println("URL:", directive.AudioItem.Stream.Url)
-			echoResp.Response.Directives = append(echoResp.Response.Directives, directive)
+		if !shared.ShouldStopPlaying(echoReq.Context.System.Device.DeviceId) {
+			nextFileName := shared.GetNextFileName(echoReq.Context.System.Device.DeviceId)
+			if nextFileName != "" {
+				directive := makeAudioPlayDirective(nextFileName)
+				log.Println("URL:", directive.AudioItem.Stream.Url)
+				echoResp.Response.Directives = append(echoResp.Response.Directives, directive)
+			}
+		} else {
+			//todo inform user that playlist is at end
+			log.Printf("todo")
 		}
+		log.Printf("Next intent")
 	case "AMAZON.HelpIntent":
-		log.Printf("help intent")
+		log.Printf("Help intent")
 		fallthrough
 	case "CurrentlyPlaying":
 		log.Printf("CurrentlyPlaying intent")
@@ -198,7 +214,7 @@ func radioHandler(echoReq *alexa.EchoRequest, echoResp *alexa.EchoResponse) {
 
 		echoResp.OutputSpeechSSML(speech).Card("Network Music Player", card)
 	case "AMAZON.ResumeIntent":
-		log.Printf("resume intent")
+		log.Printf("Resume intent")
 		fallthrough
 	case "ResumePlay":
 		log.Printf("ResumePlay intent")

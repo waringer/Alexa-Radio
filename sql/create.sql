@@ -43,6 +43,7 @@ CREATE TABLE IF NOT EXISTS `DeVice` (
   `DV_Alias` varchar(500) DEFAULT NULL,
   `DV_LastTKid` int(11) unsigned DEFAULT NULL,
   `DV_Shuffle` tinyint(1) NOT NULL DEFAULT '0',
+  `DV_Loop` TINYINT(1) NOT NULL DEFAULT '1',
   `DV_LastActive` timestamp NOT NULL DEFAULT CURRENT_TIMESTAMP,
   PRIMARY KEY (`DV_id`),
   KEY `FK_DeVice_TracK` (`DV_LastTKid`),

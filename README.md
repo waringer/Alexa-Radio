@@ -28,7 +28,7 @@ Der Umweg über den externen Webserver ist leider nötig da Amazon keine Rückga
 
 Das Projekt besteht aktuell aus 2 Teilen:
 * radio.go - dem eigentlichen Skill
-* scanner.go - Tool zum katalogisieren der Musikdateien in der Datenbak
+* scanner.go - Tool zum katalogisieren der Musikdateien in der Datenbank
 
 
 Die Bilder für den Skill sind von "ypf" (<http://ypf.deviantart.com/art/icon-for-transformers-61630983>) (<https://www.iconfinder.com/icons/31262/music_my_icon>)
