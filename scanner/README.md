@@ -8,7 +8,7 @@ Parameter:
 
 * -v
     * Anzeigen der Version, scanner wird nicht gestartet!
-* -c conf.file 
+* -c conf.file
     * Definieren einer alternativen Konfigurationsdatei, Default:radio.conf.
 * -e
     * Datenbanktabellen vor dem füllen, leeren.
