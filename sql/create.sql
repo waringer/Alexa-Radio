@@ -4,7 +4,7 @@
 /*!40014 SET @OLD_FOREIGN_KEY_CHECKS=@@FOREIGN_KEY_CHECKS, FOREIGN_KEY_CHECKS=0 */;
 /*!40101 SET @OLD_SQL_MODE=@@SQL_MODE, SQL_MODE='NO_AUTO_VALUE_ON_ZERO' */;
 
--- Exportiere Struktur von Tabelle radiogo.ActualPlaying
+-- Exportiere Struktur von Tabelle ActualPlaying
 DROP TABLE IF EXISTS `ActualPlaying`;
 CREATE TABLE IF NOT EXISTS `ActualPlaying` (
   `AP_DV_id` varchar(250) NOT NULL,
@@ -17,7 +17,7 @@ CREATE TABLE IF NOT EXISTS `ActualPlaying` (
   CONSTRAINT `FK_ActualPlaying_TracK` FOREIGN KEY (`AP_TK_id`) REFERENCES `TracK` (`TK_id`)
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8;
 
--- Exportiere Struktur von Tabelle radiogo.AlbuM
+-- Exportiere Struktur von Tabelle AlbuM
 DROP TABLE IF EXISTS `AlbuM`;
 CREATE TABLE IF NOT EXISTS `AlbuM` (
   `AM_id` int(10) unsigned NOT NULL AUTO_INCREMENT,
@@ -27,7 +27,7 @@ CREATE TABLE IF NOT EXISTS `AlbuM` (
   UNIQUE KEY `AM_Name` (`AM_Name`)
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8;
 
--- Exportiere Struktur von Tabelle radiogo.ArtisT
+-- Exportiere Struktur von Tabelle ArtisT
 DROP TABLE IF EXISTS `ArtisT`;
 CREATE TABLE IF NOT EXISTS `ArtisT` (
   `AT_id` int(10) unsigned NOT NULL AUTO_INCREMENT,
@@ -36,7 +36,7 @@ CREATE TABLE IF NOT EXISTS `ArtisT` (
   UNIQUE KEY `AT_Name` (`AT_Name`)
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8;
 
--- Exportiere Struktur von Tabelle radiogo.DeVice
+-- Exportiere Struktur von Tabelle DeVice
 DROP TABLE IF EXISTS `DeVice`;
 CREATE TABLE IF NOT EXISTS `DeVice` (
   `DV_id` varchar(250) NOT NULL,
@@ -50,10 +50,10 @@ CREATE TABLE IF NOT EXISTS `DeVice` (
   CONSTRAINT `FK_DeVice_TracK` FOREIGN KEY (`DV_LastTKid`) REFERENCES `TracK` (`TK_id`)
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8;
 
--- Exportiere Struktur von Funktion radiogo.fnAddAlbum
+-- Exportiere Struktur von Funktion fnAddAlbum
 DROP FUNCTION IF EXISTS `fnAddAlbum`;
 DELIMITER //
-CREATE DEFINER=`radiogo`@`%` FUNCTION `fnAddAlbum`(
+CREATE FUNCTION `fnAddAlbum`(
 	`Name` VARCHAR(500),
 	`AMIndex` INT
 ) RETURNS int(11)
@@ -73,10 +73,10 @@ BEGIN
 END//
 DELIMITER ;
 
--- Exportiere Struktur von Funktion radiogo.fnAddArtist
+-- Exportiere Struktur von Funktion fnAddArtist
 DROP FUNCTION IF EXISTS `fnAddArtist`;
 DELIMITER //
-CREATE DEFINER=`radiogo`@`%` FUNCTION `fnAddArtist`(
+CREATE FUNCTION `fnAddArtist`(
 	`Name` VARCHAR(500)
 ) RETURNS int(11)
     MODIFIES SQL DATA
@@ -95,10 +95,10 @@ BEGIN
 END//
 DELIMITER ;
 
--- Exportiere Struktur von Funktion radiogo.fnGetNextTrackFilename
+-- Exportiere Struktur von Funktion fnGetNextTrackFilename
 DROP FUNCTION IF EXISTS `fnGetNextTrackFilename`;
 DELIMITER //
-CREATE DEFINER=`radiogo`@`%` FUNCTION `fnGetNextTrackFilename`(
+CREATE FUNCTION `fnGetNextTrackFilename`(
 	`deviceid` VARCHAR(250)
 ) RETURNS varchar(2000) CHARSET utf8
     MODIFIES SQL DATA
@@ -121,10 +121,10 @@ BEGIN
 END//
 DELIMITER ;
 
--- Exportiere Struktur von Funktion radiogo.fnGetRandomTrackFilename
+-- Exportiere Struktur von Funktion fnGetRandomTrackFilename
 DROP FUNCTION IF EXISTS `fnGetRandomTrackFilename`;
 DELIMITER //
-CREATE DEFINER=`radiogo`@`%` FUNCTION `fnGetRandomTrackFilename`(
+CREATE FUNCTION `fnGetRandomTrackFilename`(
 	`deviceid` VARCHAR(250)
 ) RETURNS varchar(2000) CHARSET utf8
     MODIFIES SQL DATA
@@ -149,10 +149,10 @@ BEGIN
 END//
 DELIMITER ;
 
--- Exportiere Struktur von Prozedur radiogo.spDeleteTrack
+-- Exportiere Struktur von Prozedur spDeleteTrack
 DROP PROCEDURE IF EXISTS `spDeleteTrack`;
 DELIMITER //
-CREATE DEFINER=`radiogo`@`%` PROCEDURE `spDeleteTrack`(
+CREATE PROCEDURE `spDeleteTrack`(
 	IN `TKid` INT
 )
     MODIFIES SQL DATA
@@ -163,10 +163,10 @@ BEGIN
 END//
 DELIMITER ;
 
--- Exportiere Struktur von Prozedur radiogo.spUpdateActualPlaying
+-- Exportiere Struktur von Prozedur spUpdateActualPlaying
 DROP PROCEDURE IF EXISTS `spUpdateActualPlaying`;
 DELIMITER //
-CREATE DEFINER=`radiogo`@`%` PROCEDURE `spUpdateActualPlaying`(
+CREATE PROCEDURE `spUpdateActualPlaying`(
 	IN `deviceid` VARCHAR(250),
 	IN `search` VARCHAR(500)
 )
@@ -194,7 +194,7 @@ BEGIN
 END//
 DELIMITER ;
 
--- Exportiere Struktur von Tabelle radiogo.TracK
+-- Exportiere Struktur von Tabelle TracK
 DROP TABLE IF EXISTS `TracK`;
 CREATE TABLE IF NOT EXISTS `TracK` (
   `TK_id` int(10) unsigned NOT NULL AUTO_INCREMENT,
@@ -212,7 +212,7 @@ CREATE TABLE IF NOT EXISTS `TracK` (
   CONSTRAINT `Artist` FOREIGN KEY (`TK_AT_id`) REFERENCES `ArtisT` (`AT_id`)
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8;
 
--- Exportiere Struktur von View radiogo.vActualPlaylists
+-- Exportiere Struktur von View vActualPlaylists
 DROP VIEW IF EXISTS `vActualPlaylists`;
 -- Erstelle temporäre Tabelle um View Abhängigkeiten zuvorzukommen
 CREATE TABLE `vActualPlaylists` (
@@ -223,7 +223,7 @@ CREATE TABLE `vActualPlaylists` (
 	`Playcount` INT(10) NOT NULL
 ) ENGINE=MyISAM;
 
--- Exportiere Struktur von View radiogo.vTrackInfo
+-- Exportiere Struktur von View vTrackInfo
 DROP VIEW IF EXISTS `vTrackInfo`;
 -- Erstelle temporäre Tabelle um View Abhängigkeiten zuvorzukommen
 CREATE TABLE `vTrackInfo` (
@@ -233,17 +233,17 @@ CREATE TABLE `vTrackInfo` (
 	`TK_Name` VARCHAR(200) NOT NULL COLLATE 'utf8_general_ci'
 ) ENGINE=MyISAM;
 
--- Exportiere Struktur von View radiogo.vActualPlaylists
+-- Exportiere Struktur von View vActualPlaylists
 DROP VIEW IF EXISTS `vActualPlaylists`;
 -- Entferne temporäre Tabelle und erstelle die eigentliche View
 DROP TABLE IF EXISTS `vActualPlaylists`;
-CREATE ALGORITHM=UNDEFINED DEFINER=`radiogo`@`%` SQL SECURITY DEFINER VIEW `vActualPlaylists` AS select ifnull(`DeVice`.`DV_Alias`,`DeVice`.`DV_id`) AS `Device`,`ArtisT`.`AT_Name` AS `Artist`,`AlbuM`.`AM_Name` AS `Album`,`TracK`.`TK_Name` AS `Track`,`ActualPlaying`.`AP_Playcount` AS `Playcount` from ((((`ActualPlaying` join `DeVice` on((`ActualPlaying`.`AP_DV_id` = `DeVice`.`DV_id`))) join `TracK` on((`ActualPlaying`.`AP_TK_id` = `TracK`.`TK_id`))) join `AlbuM` on((`TracK`.`TK_AM_id` = `AlbuM`.`AM_id`))) join `ArtisT` on((`TracK`.`TK_AT_id` = `ArtisT`.`AT_id`))) order by `ActualPlaying`.`AP_Playcount`,`ActualPlaying`.`AP_Sort`,`ActualPlaying`.`AP_TK_id`;
+CREATE ALGORITHM=UNDEFINED SQL SECURITY DEFINER VIEW `vActualPlaylists` AS select ifnull(`DeVice`.`DV_Alias`,`DeVice`.`DV_id`) AS `Device`,`ArtisT`.`AT_Name` AS `Artist`,`AlbuM`.`AM_Name` AS `Album`,`TracK`.`TK_Name` AS `Track`,`ActualPlaying`.`AP_Playcount` AS `Playcount` from ((((`ActualPlaying` join `DeVice` on((`ActualPlaying`.`AP_DV_id` = `DeVice`.`DV_id`))) join `TracK` on((`ActualPlaying`.`AP_TK_id` = `TracK`.`TK_id`))) join `AlbuM` on((`TracK`.`TK_AM_id` = `AlbuM`.`AM_id`))) join `ArtisT` on((`TracK`.`TK_AT_id` = `ArtisT`.`AT_id`))) order by `ActualPlaying`.`AP_Playcount`,`ActualPlaying`.`AP_Sort`,`ActualPlaying`.`AP_TK_id`;
 
--- Exportiere Struktur von View radiogo.vTrackInfo
+-- Exportiere Struktur von View vTrackInfo
 DROP VIEW IF EXISTS `vTrackInfo`;
 -- Entferne temporäre Tabelle und erstelle die eigentliche View
 DROP TABLE IF EXISTS `vTrackInfo`;
-CREATE ALGORITHM=UNDEFINED DEFINER=`radiogo`@`%` SQL SECURITY DEFINER VIEW `vTrackInfo` AS select `TracK`.`TK_id` AS `TK_id`,`ArtisT`.`AT_Name` AS `AT_Name`,`AlbuM`.`AM_Name` AS `AM_Name`,`TracK`.`TK_Name` AS `TK_Name` from ((`TracK` join `AlbuM` on((`TracK`.`TK_AM_id` = `AlbuM`.`AM_id`))) join `ArtisT` on((`TracK`.`TK_AT_id` = `ArtisT`.`AT_id`)));
+CREATE ALGORITHM=UNDEFINED SQL SECURITY DEFINER VIEW `vTrackInfo` AS select `TracK`.`TK_id` AS `TK_id`,`ArtisT`.`AT_Name` AS `AT_Name`,`AlbuM`.`AM_Name` AS `AM_Name`,`TracK`.`TK_Name` AS `TK_Name` from ((`TracK` join `AlbuM` on((`TracK`.`TK_AM_id` = `AlbuM`.`AM_id`))) join `ArtisT` on((`TracK`.`TK_AT_id` = `ArtisT`.`AT_id`)));
 
 /*!40101 SET SQL_MODE=IFNULL(@OLD_SQL_MODE, '') */;
 /*!40014 SET FOREIGN_KEY_CHECKS=IF(@OLD_FOREIGN_KEY_CHECKS IS NULL, 1, @OLD_FOREIGN_KEY_CHECKS) */;
