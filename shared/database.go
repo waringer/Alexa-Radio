@@ -240,13 +240,13 @@ func SwitchLoop(deviceID string, loop bool) {
 
 func ShouldStopPlaying(deviceID string) bool {
 	if getLoopStatus(deviceID) {
-		return true
+		return false
 	}
 
 	rows, err := Database.Query("SELECT DISTINCT AP_Playcount FROM ActualPlaying WHERE AP_DV_id = ? ORDER BY AP_Playcount", deviceID)
 	if err != nil {
 		log.Println("DB Error ShouldStopPlaying:", err)
-		return false
+		return true
 	}
 
 	defer rows.Close()

@@ -1,0 +1,121 @@
+{
+    "interactionModel": {
+        "languageModel": {
+            "invocationName": "<SKILLNAME>",
+            "intents": [
+                {
+                    "name": "StartPlay",
+                    "slots": [
+                        {
+                            "name": "Searching",
+                            "type": "SEARCHPARAM"
+                        }
+                    ],
+                    "samples": [
+                        "suche",
+                        "spiele",
+                        "spiel",
+                        "abspielen",
+                        "abspiel",
+                        "suche {Searching}",
+                        "spiele {Searching}",
+                        "spiel {Searching}",
+                        "abspielen {Searching}",
+                        "abspiel {Searching}"
+                    ]
+                },
+                {
+                    "name": "ResumePlay",
+                    "slots": [],
+                    "samples": [
+                        "Musik",
+                        "nach Musik"
+                    ]
+                },
+                {
+                    "name": "AMAZON.CancelIntent",
+                    "samples": []
+                },
+                {
+                    "name": "CurrentlyPlaying",
+                    "slots": [],
+                    "samples": [
+                        "Was läuft gerade",
+                        "Was ist das"
+                    ]
+                },
+                {
+                    "name": "AMAZON.HelpIntent",
+                    "samples": []
+                },
+                {
+                    "name": "AMAZON.PauseIntent",
+                    "samples": []
+                },
+                {
+                    "name": "AMAZON.ResumeIntent",
+                    "samples": []
+                },
+                {
+                    "name": "AMAZON.StopIntent",
+                    "samples": []
+                },
+                {
+                    "name": "AMAZON.ShuffleOnIntent",
+                    "samples": []
+                },
+                {
+                    "name": "AMAZON.ShuffleOffIntent",
+                    "samples": []
+                },
+                {
+                    "name": "AMAZON.LoopOffIntent",
+                    "samples": []
+                },
+                {
+                    "name": "AMAZON.LoopOnIntent",
+                    "samples": []
+                },
+                {
+                    "name": "AMAZON.NextIntent",
+                    "samples": []
+                },
+                {
+                    "name": "AMAZON.RepeatIntent",
+                    "samples": []
+                },
+                {
+                    "name": "AMAZON.StartOverIntent",
+                    "samples": []
+                }
+            ],
+            "types": [
+                {
+                    "name": "SEARCHPARAM",
+                    "values": [
+                        {
+                            "name": {
+                                "value": "Epica"
+                            }
+                        },
+                        {
+                            "name": {
+                                "value": "Within Temptaion"
+                            }
+                        },
+                        {
+                            "name": {
+                                "value": "Origa"
+                            }
+                        },
+                        {
+                            "name": {
+                                "value": "An Cafe"
+                            }
+                        }
+                    ]
+                }
+            ]
+        }
+    }
+}
