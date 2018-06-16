@@ -1,0 +1,12 @@
+[Unit]
+Description=Alexa-Radio
+After=network.target
+
+[Service]
+ExecStart=/usr/local/bin/radio -c /etc/radio.conf
+Type=simple
+WatchdogSec=30s
+Restart=on-failure
+
+[Install]
+WantedBy=multi-user.target
