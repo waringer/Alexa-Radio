@@ -1,6 +1,6 @@
 [Unit]
 Description=Alexa-Radio
-After=network.target
+After=network.target mysqld.service
 
 [Service]
 ExecStart=/usr/local/bin/radio -c /etc/radio.conf
