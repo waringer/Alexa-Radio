@@ -196,11 +196,12 @@ func scanNFSPath(v *nfs.Target, confIndex int, path string, deep int) {
 			case isValidExtension(confIndex, dir.FileName):
 				//scanFile(v, confIndex, fileName, "", deep)
 				fileJobs <- shared.ScanFileInfo{
-					V:         v,
-					ConfIndex: confIndex,
-					Filename:  fileName,
-					BasePath:  "",
-					Deep:      deep,
+					V:              v,
+					ConfIndex:      confIndex,
+					Filename:       fileName,
+					BasePath:       "",
+					ImportComments: shared.Conf.Scanner[confIndex].ImportComments,
+					Deep:           deep,
 				}
 			}
 		}
@@ -236,11 +237,12 @@ func scanPath(confIndex int, path string, basePath string, deep int) {
 			case isValidExtension(confIndex, dir.Name()):
 				//scanFile(nil, confIndex, fileName, basePath, deep)
 				fileJobs <- shared.ScanFileInfo{
-					V:         nil,
-					ConfIndex: confIndex,
-					Filename:  fileName,
-					BasePath:  basePath,
-					Deep:      deep,
+					V:              nil,
+					ConfIndex:      confIndex,
+					Filename:       fileName,
+					BasePath:       basePath,
+					ImportComments: shared.Conf.Scanner[confIndex].ImportComments,
+					Deep:           deep,
 				}
 			}
 		}
@@ -276,7 +278,7 @@ func scanFile(confScanFile shared.ScanFileInfo) {
 
 func getTrackInfo(confScanFile shared.ScanFileInfo) shared.TrackInfo {
 	if shared.Conf.Scanner[confScanFile.ConfIndex].UseTags == true {
-		trackinfo := getTags(confScanFile.V, confScanFile.BasePath, confScanFile.Filename)
+		trackinfo := getTags(confScanFile.V, confScanFile.BasePath, confScanFile.Filename, confScanFile.ImportComments)
 		if !trackinfo.Found {
 			log.Println("==> Using path matching for deep:", confScanFile.Deep, confScanFile.Filename)
 			trackinfo = parseFileName(confScanFile.Filename, shared.Conf.Scanner[confScanFile.ConfIndex].Extractors[confScanFile.Deep])
@@ -304,7 +306,7 @@ func parseFileName(fileName string, regEx string) shared.TrackInfo {
 	}
 }
 
-func getTags(v *nfs.Target, basePath string, fileName string) shared.TrackInfo {
+func getTags(v *nfs.Target, basePath string, fileName string, importComments bool) shared.TrackInfo {
 	var fileHandle *os.File
 
 	if v != nil {
@@ -344,6 +346,23 @@ func getTags(v *nfs.Target, basePath string, fileName string) shared.TrackInfo {
 			//fmt.Println("-> Tags empty")
 		} else {
 			trackid, _ := m.Track()
+			comment := ""
+
+			if importComments {
+				if m.Raw()["COMM"] != nil { // ID3 comments
+					if str, ok := m.Raw()["COMM"].(*tag.Comm); ok && str.Description == "" {
+						comment = str.Text
+					}
+				}
+
+				if m.Raw()["comment"] != nil { // flac comments
+					if str, ok := m.Raw()["comment"].(string); ok {
+						comment = str
+					}
+				}
+
+				comment = strings.Trim(comment, " \x00\r\n\t")
+			}
 
 			return shared.TrackInfo{
 				FileName:   fileName,
@@ -353,6 +372,7 @@ func getTags(v *nfs.Target, basePath string, fileName string) shared.TrackInfo {
 				Album:      strings.TrimSpace(m.Album()),
 				AlbumIndex: m.Year(),
 				Found:      true,
+				Comment:    comment,
 			}
 		}
 	}
@@ -365,6 +385,7 @@ func getTags(v *nfs.Target, basePath string, fileName string) shared.TrackInfo {
 		Album:      "",
 		AlbumIndex: 0,
 		Found:      false,
+		Comment:    "",
 	}
 }
 
@@ -453,6 +474,7 @@ func dbWorker(wg *sync.WaitGroup) {
 				log.Println("DB insert of track:", job.Track.TrackIndex, job.Track.Track)
 				log.Println("DB insert of artist:", job.Track.Artist)
 				log.Println("DB insert of album:", job.Track.AlbumIndex, job.Track.Album)
+				log.Println("DB insert of comment:", job.Track.Comment)
 			case "touch":
 				log.Println("DB touch of track filename:", job.Track.FileName)
 			case "update":
@@ -460,6 +482,7 @@ func dbWorker(wg *sync.WaitGroup) {
 				log.Println("DB update of track:", job.Track.TrackIndex, job.Track.Track)
 				log.Println("DB update of artist:", job.Track.Artist)
 				log.Println("DB update of album:", job.Track.AlbumIndex, job.Track.Album)
+				log.Println("DB update of comment:", job.Track.Comment)
 			case "remove":
 				log.Println("DB remove of track:", job.Track.TrackIndex)
 			}

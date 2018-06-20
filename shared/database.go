@@ -49,7 +49,7 @@ func InsertTrack(track TrackInfo) {
 	var trackIndex int
 	err := Database.QueryRow("SELECT TK_id FROM TracK WHERE TK_FileName = ?", track.FileName).Scan(&trackIndex)
 	if err != nil {
-		_, err = Database.Exec("INSERT INTO TracK (TK_FileName, TK_Name, TK_AT_id, TK_AM_id, TK_Index) VALUES (?,?,?,?,?)", track.FileName, track.Track, artistIndex, albumIndex, track.TrackIndex)
+		_, err = Database.Exec("INSERT INTO TracK (TK_FileName, TK_Name, TK_AT_id, TK_AM_id, TK_Index, TK_Comment) VALUES (?,?,?,?,?,?)", track.FileName, track.Track, artistIndex, albumIndex, track.TrackIndex, track.Comment)
 		if err != nil {
 			log.Println("DB Error InsertTrack:", err, track, artistIndex, albumIndex)
 		}
@@ -62,7 +62,7 @@ func UpdateTrack(track TrackInfo) {
 	artistIndex := getArtistID(track.Artist)
 	albumIndex := getAlbumID(track.Album, track.AlbumIndex)
 
-	_, err := Database.Exec("UPDATE TracK SET TK_Name = ?, TK_AT_id = ?, TK_AM_id = ?, TK_Index = ?, TK_LastSeen = CURRENT_TIMESTAMP WHERE TK_FileName = ?", track.Track, artistIndex, albumIndex, track.TrackIndex, track.FileName)
+	_, err := Database.Exec("UPDATE TracK SET TK_Name = ?, TK_AT_id = ?, TK_AM_id = ?, TK_Index = ?, TK_Comment = ?, TK_LastSeen = CURRENT_TIMESTAMP WHERE TK_FileName = ?", track.Track, artistIndex, albumIndex, track.TrackIndex, track.Comment, track.FileName)
 	if err != nil {
 		log.Println("DB Error UpdateTrack:", err, track, artistIndex, albumIndex)
 	}

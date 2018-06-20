@@ -23,6 +23,7 @@ type ScannerConfiguration struct {
 	UseTags                bool                   `json:"useTags"`
 	FileAccessMode         string                 `json:"fileAccessMode"` // nfs or local
 	RemoveNoLongerExisting bool                   `json:"removeNoLongerExisting"`
+	ImportComments         bool                   `json:"importComments"`
 	LocalBasePath          string                 `json:"localBasePath"`
 	NFSServer              string                 `json:"nfsServer"`
 	NFSShare               string                 `json:"nfsShare"`
@@ -41,6 +42,7 @@ type TrackInfo struct {
 	Album      string
 	AlbumIndex int
 	Found      bool
+	Comment    string
 }
 
 // ScannerInfo structure to hold config values for a scanner task
@@ -51,11 +53,12 @@ type ScannerInfo struct {
 
 // ScanFileInfo structure to hold values for the task of get infos from a file
 type ScanFileInfo struct {
-	V         *nfs.Target
-	ConfIndex int
-	Filename  string
-	BasePath  string
-	Deep      int
+	V              *nfs.Target
+	ConfIndex      int
+	Filename       string
+	BasePath       string
+	ImportComments bool
+	Deep           int
 }
 
 // DBJob helper structure for db tasks

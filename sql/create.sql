@@ -184,7 +184,7 @@ BEGIN
 		FROM TracK 
 		LEFT JOIN ArtisT ON TK_AT_id = AT_id 
 		LEFT JOIN AlbuM ON TK_AM_id = AM_id 
-		WHERE TK_Name LIKE search OR AT_Name LIKE search OR AM_Name LIKE search 
+		WHERE TK_Name LIKE search OR TK_Comment LIKE search OR AT_Name LIKE search OR AM_Name LIKE search 
 		ORDER BY AT_id, AM_Index, AM_id, TK_Index, TK_id;
 		
 		INSERT INTO ActualPlaying
@@ -202,6 +202,7 @@ CREATE TABLE IF NOT EXISTS `TracK` (
   `TK_AM_id` int(10) unsigned NOT NULL,
   `TK_Index` int(10) unsigned NOT NULL DEFAULT '0',
   `TK_Name` varchar(200) NOT NULL,
+  `TK_Comment` varchar(2000) NOT NULL DEFAULT '',
   `TK_FileName` varchar(2000) NOT NULL,
   `TK_LastSeen` timestamp NOT NULL DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP,
   PRIMARY KEY (`TK_id`),
