@@ -87,6 +87,9 @@ func audioHandler(echoReq *alexa.EchoRequest, echoResp *alexa.EchoResponse) {
 		log.Printf("type AudioPlayer.PlaybackStopped")
 	case "AudioPlayer.PlaybackFinished":
 		log.Printf("type AudioPlayer.PlaybackFinished")
+	case "AudioPlayer.PlaybackFailed":
+		log.Printf("type AudioPlayer.PlaybackFailed")
+		fallthrough
 	case "AudioPlayer.PlaybackNearlyFinished":
 		if !shared.ShouldStopPlaying(echoReq.Context.System.Device.DeviceId) {
 			nextFileName := shared.GetNextFileName(echoReq.Context.System.Device.DeviceId)
