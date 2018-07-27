@@ -5,6 +5,8 @@ import (
 	"fmt"
 	"log"
 	"os"
+	"regexp"
+	"strconv"
 	"strings"
 	"time"
 
@@ -83,6 +85,7 @@ func audioHandler(echoReq *alexa.EchoRequest, echoResp *alexa.EchoResponse) {
 	switch echoReq.Request.Type {
 	case "AudioPlayer.PlaybackStarted":
 		log.Printf("type AudioPlayer.PlaybackStarted")
+		shared.MarkTrackPlayed(echoReq.Context.System.Device.DeviceId, extractTrackID(echoReq.Request.Token))
 	case "AudioPlayer.PlaybackStopped":
 		log.Printf("type AudioPlayer.PlaybackStopped")
 	case "AudioPlayer.PlaybackFinished":
@@ -92,9 +95,11 @@ func audioHandler(echoReq *alexa.EchoRequest, echoResp *alexa.EchoResponse) {
 		fallthrough
 	case "AudioPlayer.PlaybackNearlyFinished":
 		if !shared.ShouldStopPlaying(echoReq.Context.System.Device.DeviceId) {
-			nextFileName := shared.GetNextFileName(echoReq.Context.System.Device.DeviceId)
+			nextTrackID := shared.GetNextTrackID(echoReq.Context.System.Device.DeviceId)
+			nextFileName := shared.GetTrackFileName(nextTrackID)
+
 			if nextFileName != "" {
-				directive := makeAudioPlayDirective(nextFileName)
+				directive := makeAudioPlayDirective(nextFileName, true, nextTrackID)
 				log.Println("URL:", directive.AudioItem.Stream.Url)
 				echoResp.Response.Directives = append(echoResp.Response.Directives, directive)
 			}
@@ -171,9 +176,11 @@ func radioHandler(echoReq *alexa.EchoRequest, echoResp *alexa.EchoResponse) {
 		log.Printf("Stop intent")
 	case "AMAZON.NextIntent":
 		if !shared.ShouldStopPlaying(echoReq.Context.System.Device.DeviceId) {
-			nextFileName := shared.GetNextFileName(echoReq.Context.System.Device.DeviceId)
+			nextTrackID := shared.GetNextTrackID(echoReq.Context.System.Device.DeviceId)
+			nextFileName := shared.GetTrackFileName(nextTrackID)
+
 			if nextFileName != "" {
-				directive := makeAudioPlayDirective(nextFileName)
+				directive := makeAudioPlayDirective(nextFileName, false, nextTrackID)
 				log.Println("URL:", directive.AudioItem.Stream.Url)
 				echoResp.Response.Directives = append(echoResp.Response.Directives, directive)
 			}
@@ -217,9 +224,11 @@ func radioHandler(echoReq *alexa.EchoRequest, echoResp *alexa.EchoResponse) {
 		fallthrough
 	case "ResumePlay":
 		log.Printf("ResumePlay intent")
-		nextFileName := shared.GetNextFileName(echoReq.Context.System.Device.DeviceId)
+		nextTrackID := shared.GetNextTrackID(echoReq.Context.System.Device.DeviceId)
+		nextFileName := shared.GetTrackFileName(nextTrackID)
+
 		if nextFileName != "" {
-			directive := makeAudioPlayDirective(nextFileName)
+			directive := makeAudioPlayDirective(nextFileName, false, nextTrackID)
 			log.Println("URL:", directive.AudioItem.Stream.Url)
 
 			card := fmt.Sprint("Ok, ich mach ja schon weiter!")
@@ -241,9 +250,11 @@ func radioHandler(echoReq *alexa.EchoRequest, echoResp *alexa.EchoResponse) {
 
 		if SearchString != "" {
 			shared.UpdateActualPlaying(echoReq.Context.System.Device.DeviceId, SearchString)
-			nextFileName := shared.GetNextFileName(echoReq.Context.System.Device.DeviceId)
+			nextTrackID := shared.GetNextTrackID(echoReq.Context.System.Device.DeviceId)
+			nextFileName := shared.GetTrackFileName(nextTrackID)
+
 			if nextFileName != "" {
-				directive := makeAudioPlayDirective(nextFileName)
+				directive := makeAudioPlayDirective(nextFileName, false, nextTrackID)
 				log.Println("URL:", directive.AudioItem.Stream.Url)
 
 				card := fmt.Sprintf("ich such ja schon %s raus", SearchString)
@@ -275,13 +286,29 @@ func radioHandler(echoReq *alexa.EchoRequest, echoResp *alexa.EchoResponse) {
 	}
 }
 
-func makeAudioPlayDirective(fileName string) alexa.EchoDirective {
+func makeAudioPlayDirective(fileName string, enqueu bool, trackID int) alexa.EchoDirective {
+	playBehavior := "REPLACE_ALL"
+
+	if enqueu {
+		playBehavior = "REPLACE_ENQUEUED"
+	}
+
 	return alexa.EchoDirective{
 		Type:         "AudioPlayer.Play",
-		PlayBehavior: "REPLACE_ALL",
+		PlayBehavior: playBehavior,
 		AudioItem: &alexa.EchoAudioItem{
 			Stream: alexa.EchoStream{
 				Url:                  shared.UrlEncode(fileName),
-				Token:                fmt.Sprintf("NMP-%s", time.Now().Format("20060102T150405999999")),
+				Token:                fmt.Sprintf("NMP~%d~%s", trackID, time.Now().Format("20060102T150405999999")),
 				OffsetInMilliseconds: 0}}}
+}
+
+func extractTrackID(Token string) (TKid int) {
+	var regEx = regexp.MustCompile(`(?:NMP~)(?P<TKid>\d+)~.*`)
+
+	if len(regEx.FindStringIndex(Token)) > 0 {
+		TKid, _ = strconv.Atoi(regEx.FindStringSubmatch(Token)[1])
+	}
+
+	return
 }

@@ -173,20 +173,39 @@ func UpdateActualPlaying(deviceID, searching string) {
 	}
 }
 
-func GetNextFileName(deviceID string) (FileName string) {
+func GetNextTrackID(deviceID string) (TrackID int) {
+	isRandom := 0
+
 	if getShuffleStatus(deviceID) {
-		err := Database.QueryRow("SELECT fnGetRandomTrackFilename(?);", deviceID).Scan(&FileName)
-		if err != nil {
-			log.Println("DB Error shuffle GetNextFileName:", err)
-		}
-	} else {
-		err := Database.QueryRow("SELECT fnGetNextTrackFilename(?);", deviceID).Scan(&FileName)
-		if err != nil {
-			log.Println("DB Error nonshuffle GetNextFileName:", err)
-		}
+		isRandom = 1
+	}
+
+	err := Database.QueryRow("SELECT fnGetNextTrackId(?, ?);", deviceID, isRandom).Scan(&TrackID)
+	if err != nil {
+		log.Println("DB Error GetNextTrackID:", err)
 	}
 
 	return
+}
+
+func GetTrackFileName(TrackID int) (FileName string) {
+	if TrackID < 0 {
+		return
+	}
+
+	err := Database.QueryRow("SELECT TK_FileName FROM TracK WHERE TK_id = ?;", TrackID).Scan(&FileName)
+	if err != nil {
+		log.Println("DB Error GetTrackFileName:", err, TrackID)
+	}
+
+	return
+}
+
+func MarkTrackPlayed(deviceID string, TrackID int) {
+	_, err := Database.Exec("CALL spMarkTackPlayed(?, ?)", deviceID, TrackID)
+	if err != nil {
+		log.Println("DB Error MarkTrackPlayed:", err, deviceID, TrackID)
+	}
 }
 
 func GetPlayingInfo(deviceID string) (Artist, Album, Trackname string) {
