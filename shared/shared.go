@@ -34,6 +34,7 @@ func LoadConfig(filename string) error {
 		DBServer:    "localhost",
 		Scanner: []ScannerConfiguration{
 			ScannerConfiguration{
+				Enabled:                true,
 				UseTags:                true,
 				FileAccessMode:         "local",
 				RemoveNoLongerExisting: false,

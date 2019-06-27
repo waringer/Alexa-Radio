@@ -31,6 +31,7 @@ type ScannerConfiguration struct {
 	IncludePaths           []string               `json:"pathIncludes"`
 	ExcludePaths           []string               `json:"pathExcludes"`
 	Extractors             map[int]string         `json:"tagExtractors"`
+	Enabled                bool                   `json:"enabled"`
 }
 
 // TrackInfo structure to hold informations about a track

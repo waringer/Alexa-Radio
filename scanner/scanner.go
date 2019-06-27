@@ -103,11 +103,13 @@ func main() {
 	}
 
 	for confIndex, actualConf := range shared.Conf.Scanner {
-		scannerJobs <- shared.ScannerInfo{
-			ActualConf: actualConf,
-			ConfIndex:  confIndex,
+		if actualConf.Enabled == true {
+			scannerJobs <- shared.ScannerInfo{
+				ActualConf: actualConf,
+				ConfIndex:  confIndex,
+			}
+			time.Sleep(100 * time.Millisecond) // give job some time to start
 		}
-		time.Sleep(100 * time.Millisecond) // give job some time to start
 	}
 
 	log.Println("> wait for jobs started")
