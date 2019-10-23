@@ -150,6 +150,7 @@ END//
 DELIMITER ;
 
 -- Exportiere Struktur von Funktion radiogo.fnGetNextTrackId
+DROP FUNCTION IF EXISTS `fnGetNextTrackId`;
 DELIMITER //
 CREATE FUNCTION `fnGetNextTrackId`(
 	`deviceid` VARCHAR(250),
@@ -179,6 +180,7 @@ END//
 DELIMITER ;
 
 -- Exportiere Struktur von Prozedur radiogo.spMarkTackPlayed
+DROP PROCEDURE IF EXISTS `spMarkTackPlayed`;
 DELIMITER //
 CREATE PROCEDURE `spMarkTackPlayed`(
 	IN `deviceid` VARCHAR(250),
@@ -219,7 +221,8 @@ BEGIN
 		SET search = CONCAT('%', search, '%');
 		DELETE FROM ActualPlaying WHERE AP_DV_id = deviceid;
 		
-		CREATE OR REPLACE TEMPORARY TABLE tmppl (`tmp_id` INT(10) UNSIGNED NOT NULL AUTO_INCREMENT, `tmp_TKid` INT(10) UNSIGNED NOT NULL, PRIMARY KEY (`tmp_id`));
+		DROP TABLE IF EXISTS tmppl;
+		CREATE TEMPORARY TABLE tmppl (`tmp_id` INT(10) UNSIGNED NOT NULL AUTO_INCREMENT, `tmp_TKid` INT(10) UNSIGNED NOT NULL, PRIMARY KEY (`tmp_id`));
 		
 		INSERT INTO tmppl
 	 	SELECT null, TracK.TK_id 
