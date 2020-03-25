@@ -1,9 +1,12 @@
 package main
 
 import (
+	"encoding/json"
 	"flag"
 	"fmt"
+	"io/ioutil"
 	"log"
+	"math/rand"
 	"os"
 	"regexp"
 	"strconv"
@@ -21,10 +24,12 @@ import (
 var (
 	buildstamp string
 	githash    string
+	responses  shared.Responses
 )
 
 func main() {
 	confFile := flag.String("c", "radio.conf", "config file to use")
+	reponseFile := flag.String("r", "response.conf", "response file to use")
 	version := flag.Bool("v", false, "prints current version and exit")
 	flag.Parse()
 
@@ -38,6 +43,11 @@ func main() {
 	if err != nil {
 		log.Println("can't read conf file", *confFile)
 		shared.SaveConfig(*confFile)
+	}
+
+	err = loadResponses(*reponseFile)
+	if err != nil {
+		log.Println("can't read response file", *reponseFile)
 	}
 
 	if shared.Conf.AmazonAppID == "" {
@@ -140,28 +150,28 @@ func radioHandler(echoReq *alexa.EchoRequest, echoResp *alexa.EchoResponse) {
 		log.Printf("StartOver intent")
 
 		//todo implement
-		card := fmt.Sprint("Stör mich jetzt nicht, ich hab zu tun!")
+		card := fmt.Sprint(getRandomResponse(responses.NotImplemented)) // Stör mich jetzt nicht, ich hab zu tun!
 		speech := fmt.Sprintf("<speak>%s</speak>", card)
 		echoResp.OutputSpeechSSML(speech).Card("Network Music Player", card)
 	case "AMAZON.RepeatIntent":
 		log.Printf("Repeat intent")
 
 		//todo implement
-		card := fmt.Sprint("Stör mich jetzt nicht, ich hab zu tun!")
+		card := fmt.Sprint(getRandomResponse(responses.NotImplemented)) // Stör mich jetzt nicht, ich hab zu tun!
 		speech := fmt.Sprintf("<speak>%s</speak>", card)
 		echoResp.OutputSpeechSSML(speech).Card("Network Music Player", card)
 	case "AMAZON.LoopOnIntent":
 		shared.SwitchLoop(echoReq.Context.System.Device.DeviceId, true)
 		log.Printf("LoopOff intent")
 
-		card := fmt.Sprint("Loop ist jetzt an")
+		card := fmt.Sprint(getRandomResponse(responses.LoopOn)) // Loop ist jetzt an
 		speech := fmt.Sprintf("<speak>%s</speak>", card)
 		echoResp.OutputSpeechSSML(speech).Card("Network Music Player", card)
 	case "AMAZON.LoopOffIntent":
 		shared.SwitchLoop(echoReq.Context.System.Device.DeviceId, false)
 		log.Printf("LoopOff intent")
 
-		card := fmt.Sprint("Loop ist jetzt aus")
+		card := fmt.Sprint(getRandomResponse(responses.LoopOff)) // Loop ist jetzt aus
 		speech := fmt.Sprintf("<speak>%s</speak>", card)
 		echoResp.OutputSpeechSSML(speech).Card("Network Music Player", card)
 	case "AMAZON.PauseIntent":
@@ -186,7 +196,7 @@ func radioHandler(echoReq *alexa.EchoRequest, echoResp *alexa.EchoResponse) {
 			}
 		} else {
 			//inform user that playlist is at end
-			card := fmt.Sprint("Puh, endlich kann ich ausruhen! Playlist ist durch.")
+			card := fmt.Sprint(getRandomResponse(responses.PlaylistEnd)) // Puh, endlich kann ich ausruhen! Playlist ist durch.
 			speech := fmt.Sprintf("<speak>%s</speak>", card)
 			echoResp.OutputSpeechSSML(speech).Card("Network Music Player", card)
 		}
@@ -231,13 +241,13 @@ func radioHandler(echoReq *alexa.EchoRequest, echoResp *alexa.EchoResponse) {
 			directive := makeAudioPlayDirective(nextFileName, false, nextTrackID)
 			log.Println("URL:", directive.AudioItem.Stream.Url)
 
-			card := fmt.Sprint("Ok, ich mach ja schon weiter!")
+			card := fmt.Sprint(getRandomResponse(responses.ResumePlay)) // Ok, ich mach ja schon weiter!
 			speech := fmt.Sprintf("<speak>%s</speak>", card)
 			echoResp.OutputSpeechSSML(speech).Card("Network Music Player", card)
 
 			echoResp.Response.Directives = append(echoResp.Response.Directives, directive)
 		} else {
-			card := fmt.Sprintf("Hey, erst musst du mir sagen was ich raussuchen muss! Also was soll es sein?")
+			card := fmt.Sprintf(getRandomResponse(responses.CantResume)) // Hey, erst musst du mir sagen was ich raussuchen muss! Also was soll es sein?
 			speech := fmt.Sprintf("<speak>%s</speak>", card)
 			echoResp.OutputSpeechSSML(speech).Card("Network Music Player", card)
 
@@ -257,13 +267,13 @@ func radioHandler(echoReq *alexa.EchoRequest, echoResp *alexa.EchoResponse) {
 				directive := makeAudioPlayDirective(nextFileName, false, nextTrackID)
 				log.Println("URL:", directive.AudioItem.Stream.Url)
 
-				card := fmt.Sprintf("ich such ja schon %s raus", SearchString)
+				card := fmt.Sprintf(getRandomResponse(responses.Searching), SearchString) // ich such ja schon %s raus
 				speech := fmt.Sprintf("<speak>%s</speak>", card)
 				echoResp.OutputSpeechSSML(speech).Card("Network Music Player", card)
 
 				echoResp.Response.Directives = append(echoResp.Response.Directives, directive)
 			} else {
-				card := fmt.Sprintf("Ich konnte für %s absolut nix finden!", SearchString)
+				card := fmt.Sprintf(getRandomResponse(responses.CantFind), SearchString) // Ich konnte für %s absolut nix finden!
 				speech := fmt.Sprintf("<speak>%s</speak>", card)
 				echoResp.OutputSpeechSSML(speech).Card("Network Music Player", card)
 			}
@@ -278,7 +288,7 @@ func radioHandler(echoReq *alexa.EchoRequest, echoResp *alexa.EchoResponse) {
 	case "":
 		log.Printf("default intent")
 
-		card := fmt.Sprint("Was willst du schon wieder?")
+		card := fmt.Sprint(getRandomResponse(responses.Hello)) // Was willst du schon wieder?
 		speech := fmt.Sprintf("<speak>%s</speak>", card)
 		echoResp.OutputSpeechSSML(speech).Card("Network Music Player", card)
 
@@ -311,4 +321,38 @@ func extractTrackID(Token string) (TKid int) {
 	}
 
 	return
+}
+
+func loadResponses(filename string) error {
+	DefaultResponses := shared.Responses{
+		NotImplemented: []string{"Stör mich jetzt nicht, ich hab zu tun!"},
+		Hello:          []string{"Was willst du schon wieder?"},
+		ResumePlay:     []string{"Ok, ich mach ja schon weiter!"},
+		CantResume:     []string{"Hey, erst musst du mir sagen was ich raussuchen muss! Also was soll es sein?"},
+		PlaylistEnd:    []string{"Puh, endlich kann ich ausruhen! Playlist ist durch."},
+		LoopOn:         []string{"Loop ist jetzt an"},
+		LoopOff:        []string{"Loop ist jetzt aus"},
+		Searching:      []string{"ich such ja schon %s raus"},
+		CantFind:       []string{"Ich konnte für %s absolut nix finden!"},
+	}
+
+	bytes, err := ioutil.ReadFile(filename)
+	if err != nil {
+		responses = DefaultResponses
+		return err
+	}
+
+	err = json.Unmarshal(bytes, &DefaultResponses)
+	if err != nil {
+		responses = shared.Responses{}
+		return err
+	}
+
+	responses = DefaultResponses
+	return nil
+}
+
+func getRandomResponse(responses []string) string {
+	rand.Seed(time.Now().Unix())
+	return responses[rand.Intn(len(responses))]
 }

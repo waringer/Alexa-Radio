@@ -67,3 +67,16 @@ type DBJob struct {
 	JobType string
 	Track   TrackInfo
 }
+
+// Responses structure to hold possible responses
+type Responses struct {
+	NotImplemented []string `json:"notImplemented"`
+	Hello          []string `json:"hello"`
+	ResumePlay     []string `json:"resumePlay"`
+	CantResume     []string `json:"cantResume"`
+	PlaylistEnd    []string `json:"playlistEnd"`
+	LoopOn         []string `json:"loopOn"`
+	LoopOff        []string `json:"loopOff"`
+	Searching      []string `json:"searching"`
+	CantFind       []string `json:"cantFind"`
+}
