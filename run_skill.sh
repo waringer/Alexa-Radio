@@ -4,6 +4,7 @@ p=`pwd`
 
 #export GOPATH=$p/lib/
 export GIT_SSL_NO_VERIFY=1
+export GO111MODULE=off
 
 echo "get libs"
 go get -u -d github.com/waringer/go-alexa/skillserver
