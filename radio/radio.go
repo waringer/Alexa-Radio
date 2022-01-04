@@ -13,7 +13,7 @@ import (
 	"strings"
 	"time"
 
-	"../shared"
+	"github.com/waringer/Alexa-Radio/shared"
 
 	"github.com/codegangsta/negroni"
 	_ "github.com/go-sql-driver/mysql"

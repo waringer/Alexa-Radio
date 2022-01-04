@@ -15,7 +15,7 @@ import (
 	"sync"
 	"time"
 
-	"../shared"
+	"github.com/waringer/Alexa-Radio/shared"
 
 	"github.com/dhowden/tag"
 	_ "github.com/go-sql-driver/mysql"
