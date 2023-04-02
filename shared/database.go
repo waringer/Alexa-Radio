@@ -173,6 +173,13 @@ func UpdateActualPlaying(deviceID, searching string) {
 	}
 }
 
+func UpdateActualPlayingAlbumOrTitle(deviceID, searchAlbumOrTitle string, searchArtist string) {
+        _, err := Database.Exec("CALL spUpdateActualPlayingAlbumOrTitle(?,?,?);", deviceID, searchAlbumOrTitle, searchArtist)
+        if err != nil {
+                log.Println("DB Error UpdateActualPlayingAlbumOrTitle:", err)
+        }
+}
+
 func GetNextTrackID(deviceID string) (TrackID int) {
 	isRandom := 0
 

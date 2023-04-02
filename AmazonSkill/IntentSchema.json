@@ -10,6 +10,19 @@
       "intent": "StartPlay"
     },
     {
+      "slots": [
+        {
+          "name": "{AlbumOrTitle}",
+          "type": "SEARCHAlbumOrTitle"
+        },
+        {
+          "name": "{ArtistName}",
+          "type": "SEARCHArtistName"
+        }
+      ],
+      "intent": "StartPlayAlbumOrTitle"
+    },
+    {
       "intent": "ResumePlay"
     },
     {
