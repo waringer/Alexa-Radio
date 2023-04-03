@@ -25,6 +25,23 @@
                     ]
                 },
                 {
+                    "name": "StartPlayAlbumOrTitle",
+                    "slots": [
+                        {
+                            "name": "AlbumOrTitle",
+                            "type": "SEARCHAlbumOrTitle"
+                        },
+                        {
+                            "name": "ArtistName",
+                            "type": "SEARCHArtistName"
+                        }
+                    ],
+                    "samples": [
+                        "spiele {AlbumOrTitle} von {ArtistName}",
+                        "spiel {AlbumOrTitle} von {ArtistName}"
+                    ]
+                },
+                {
                     "name": "ResumePlay",
                     "slots": [],
                     "samples": [
@@ -92,6 +109,56 @@
             "types": [
                 {
                     "name": "SEARCHPARAM",
+                    "values": [
+                        {
+                            "name": {
+                                "value": "Epica"
+                            }
+                        },
+                        {
+                            "name": {
+                                "value": "Within Temptaion"
+                            }
+                        },
+                        {
+                            "name": {
+                                "value": "Origa"
+                            }
+                        },
+                        {
+                            "name": {
+                                "value": "An Cafe"
+                            }
+                        }
+                    ]
+                },
+                {
+                    "name": "SEARCHAlbumOrTitle",
+                    "values": [
+                        {
+                            "name": {
+                                "value": "Epica"
+                            }
+                        },
+                        {
+                            "name": {
+                                "value": "Within Temptaion"
+                            }
+                        },
+                        {
+                            "name": {
+                                "value": "Origa"
+                            }
+                        },
+                        {
+                            "name": {
+                                "value": "An Cafe"
+                            }
+                        }
+                    ]
+                },
+                {
+                    "name": "SEARCHArtistName",
                     "values": [
                         {
                             "name": {

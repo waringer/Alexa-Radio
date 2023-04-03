@@ -239,6 +239,42 @@ BEGIN
 END//
 DELIMITER ;
 
+-- Exportiere Struktur von Prozedur spUpdateActualPlayingAlbumOrTitle
+DROP PROCEDURE IF EXISTS `spUpdateActualPlayingAlbumOrTitle`;
+DELIMITER //
+CREATE PROCEDURE `spUpdateActualPlayingAlbumOrTitle`(
+        IN `deviceid` VARCHAR(250),
+        IN `searchAlbumOrTitle` VARCHAR(500),
+        IN `searchArtist` VARCHAR(500)
+
+)
+    READS SQL DATA
+BEGIN
+        IF (SELECT 1 = 1 FROM DeVice WHERE DV_id = deviceid) THEN
+        BEGIN
+                SET searchAlbumOrTitle = CONCAT('%', searchAlbumOrTitle, '%');
+                SET searchArtist = CONCAT('%', searchArtist, '%');
+                DELETE FROM ActualPlaying WHERE AP_DV_id = deviceid;
+
+                DROP TABLE IF EXISTS tmppl;
+                CREATE TEMPORARY TABLE tmppl (`tmp_id` INT(10) UNSIGNED NOT NULL AUTO_INCREMENT, `tmp_TKid` INT(10) UNSIGNED NOT NULL, PRIMARY KEY (`tmp_id`));
+
+                INSERT INTO tmppl
+                SELECT null, TracK.TK_id
+                FROM TracK
+                LEFT JOIN ArtisT ON TK_AT_id = AT_id
+                LEFT JOIN AlbuM ON TK_AM_id = AM_id
+                WHERE TK_Name LIKE searchArtist OR TK_Comment LIKE searchAlbumOrTitle OR AT_Name LIKE searchAlbumOrTitle OR AM_Name LIKE searchAlbumOrTitle
+                ORDER BY AT_id, AM_Index, AM_id, TK_Index, TK_id;
+
+                INSERT INTO ActualPlaying
+                SELECT deviceid, tmppl.tmp_TKid, tmppl.tmp_id, 0 FROM tmppl;
+        END;
+        END IF;
+END//
+DELIMITER ;
+
+
 -- Exportiere Struktur von Tabelle TracK
 DROP TABLE IF EXISTS `TracK`;
 CREATE TABLE IF NOT EXISTS `TracK` (
