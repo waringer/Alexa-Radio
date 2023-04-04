@@ -264,7 +264,8 @@ BEGIN
                 FROM TracK
                 LEFT JOIN ArtisT ON TK_AT_id = AT_id
                 LEFT JOIN AlbuM ON TK_AM_id = AM_id
-                WHERE TK_Name LIKE searchArtist OR TK_Comment LIKE searchAlbumOrTitle OR AT_Name LIKE searchAlbumOrTitle OR AM_Name LIKE searchAlbumOrTitle
+                WHERE TK_Name LIKE searchArtist 
+		AND TK_Comment LIKE searchAlbumOrTitle OR AT_Name LIKE searchAlbumOrTitle OR AM_Name LIKE searchAlbumOrTitle
                 ORDER BY AT_id, AM_Index, AM_id, TK_Index, TK_id;
 
                 INSERT INTO ActualPlaying
