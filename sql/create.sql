@@ -218,7 +218,7 @@ CREATE PROCEDURE `spUpdateActualPlaying`(
 BEGIN
 	IF (SELECT 1 = 1 FROM DeVice WHERE DV_id = deviceid) THEN
 	BEGIN
-		SET search = CONCAT('%', search, '%');
+		SET @LikeSearch = CONCAT('%', search, '%');
 		DELETE FROM ActualPlaying WHERE AP_DV_id = deviceid;
 		
 		DROP TABLE IF EXISTS tmppl;
@@ -229,8 +229,20 @@ BEGIN
 		FROM TracK 
 		LEFT JOIN ArtisT ON TK_AT_id = AT_id 
 		LEFT JOIN AlbuM ON TK_AM_id = AM_id 
-		WHERE TK_Name LIKE search OR TK_Comment LIKE search OR AT_Name LIKE search OR AM_Name LIKE search 
+		WHERE TK_Name LIKE @LikeSearch OR TK_Comment LIKE @LikeSearch OR AT_Name LIKE @LikeSearch OR AM_Name LIKE @LikeSearch
 		ORDER BY AT_id, AM_Index, AM_id, TK_Index, TK_id;
+		
+		IF !(SELECT EXISTS (SELECT 1 FROM tmppl)) THEN
+		BEGIN
+			INSERT INTO tmppl
+		 	SELECT null, TracK.TK_id 
+			FROM TracK 
+			LEFT JOIN ArtisT ON TK_AT_id = AT_id 
+			LEFT JOIN AlbuM ON TK_AM_id = AM_id 
+			WHERE (TK_Name SOUNDS LIKE search OR TK_Comment SOUNDS LIKE search OR AT_Name SOUNDS LIKE search OR AM_Name SOUNDS LIKE search)
+			ORDER BY AT_id, AM_Index, AM_id, TK_Index, TK_id;
+		END;
+		END IF;
 		
 		INSERT INTO ActualPlaying
 	 	SELECT deviceid, tmppl.tmp_TKid, tmppl.tmp_id, 0 FROM tmppl;
@@ -246,32 +258,42 @@ CREATE PROCEDURE `spUpdateActualPlayingAlbumOrTitle`(
         IN `deviceid` VARCHAR(250),
         IN `searchAlbumOrTitle` VARCHAR(500),
         IN `searchArtist` VARCHAR(500)
-
 )
     READS SQL DATA
 BEGIN
-        IF (SELECT 1 = 1 FROM DeVice WHERE DV_id = deviceid) THEN
-        BEGIN
-                SET searchAlbumOrTitle = CONCAT('%', searchAlbumOrTitle, '%');
-                SET searchArtist = CONCAT('%', searchArtist, '%');
-                DELETE FROM ActualPlaying WHERE AP_DV_id = deviceid;
+	IF (SELECT 1 = 1 FROM DeVice WHERE DV_id = deviceid) THEN
+	BEGIN
+		SET @LikeAlbumOrTitle = CONCAT('%', searchAlbumOrTitle, '%');
+		SET @LikeArtist = CONCAT('%', searchArtist, '%');
+		DELETE FROM ActualPlaying WHERE AP_DV_id = deviceid;
 
-                DROP TABLE IF EXISTS tmppl;
-                CREATE TEMPORARY TABLE tmppl (`tmp_id` INT(10) UNSIGNED NOT NULL AUTO_INCREMENT, `tmp_TKid` INT(10) UNSIGNED NOT NULL, PRIMARY KEY (`tmp_id`));
+		DROP TABLE IF EXISTS tmppl;
+		CREATE TEMPORARY TABLE tmppl (`tmp_id` INT(10) UNSIGNED NOT NULL AUTO_INCREMENT, `tmp_TKid` INT(10) UNSIGNED NOT NULL, PRIMARY KEY (`tmp_id`));
 
-                INSERT INTO tmppl
-                SELECT null, TracK.TK_id
-                FROM TracK
-                LEFT JOIN ArtisT ON TK_AT_id = AT_id
-                LEFT JOIN AlbuM ON TK_AM_id = AM_id
-                WHERE TK_Name LIKE searchArtist 
-		AND TK_Comment LIKE searchAlbumOrTitle OR AT_Name LIKE searchAlbumOrTitle OR AM_Name LIKE searchAlbumOrTitle
-                ORDER BY AT_id, AM_Index, AM_id, TK_Index, TK_id;
+		INSERT INTO tmppl
+		SELECT null, TracK.TK_id
+		FROM TracK
+		LEFT JOIN ArtisT ON TK_AT_id = AT_id
+		LEFT JOIN AlbuM ON TK_AM_id = AM_id
+		WHERE AT_Name LIKE @LikeArtist AND (TK_Name LIKE @LikeAlbumOrTitle OR TK_Comment LIKE @LikeAlbumOrTitle OR AM_Name LIKE @LikeAlbumOrTitle)
+		ORDER BY AT_id, AM_Index, AM_id, TK_Index, TK_id;
 
-                INSERT INTO ActualPlaying
-                SELECT deviceid, tmppl.tmp_TKid, tmppl.tmp_id, 0 FROM tmppl;
-        END;
-        END IF;
+		IF !(SELECT EXISTS (SELECT 1 FROM tmppl)) THEN
+		BEGIN
+			INSERT INTO tmppl
+			SELECT null, TracK.TK_id
+			FROM TracK
+			LEFT JOIN ArtisT ON TK_AT_id = AT_id
+			LEFT JOIN AlbuM ON TK_AM_id = AM_id
+			WHERE AT_Name SOUNDS LIKE searchArtist AND (TK_Name SOUNDS LIKE searchAlbumOrTitle OR TK_Comment SOUNDS LIKE searchAlbumOrTitle OR AM_Name SOUNDS LIKE searchAlbumOrTitle)
+			ORDER BY AT_id, AM_Index, AM_id, TK_Index, TK_id;
+		END;
+		END IF;
+
+		INSERT INTO ActualPlaying
+		SELECT deviceid, tmppl.tmp_TKid, tmppl.tmp_id, 0 FROM tmppl;
+	END;
+	END IF;
 END//
 DELIMITER ;
 
