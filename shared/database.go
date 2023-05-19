@@ -235,6 +235,19 @@ func GetPlayingInfo(deviceID string) (Artist, Album, Trackname string) {
 	return
 }
 
+func GetPlayingInfoTrackID(TrackID int) (Artist, Album, Trackname string) {
+        err := Database.QueryRow("SELECT AT_Name, AM_Name, TK_Name FROM vTrackInfo WHERE TK_id = ?;", TrackID).Scan(&Artist, &Album, &Trackname)
+        if err != nil {
+                log.Println("DB Error GetPlayingInfo:", err)
+        }
+
+        Artist = strings.TrimSpace(Artist)
+        Album = strings.TrimSpace(Album)
+        Trackname = strings.TrimSpace(Trackname)
+
+        return
+}
+
 func SwitchShuffle(deviceID string, shuffle bool) {
 	shuffleBit := 0
 

@@ -18,7 +18,7 @@ import (
 	"github.com/codegangsta/negroni"
 	_ "github.com/go-sql-driver/mysql"
 	"github.com/gorilla/mux"
-	alexa "github.com/waringer/go-alexa/skillserver"
+	alexa "github.com/bschirrmeister/go-alexa/skillserver"
 )
 
 var (
@@ -355,7 +355,7 @@ func makeAudioPlayDirective(fileName string, enqueu bool, trackID int) alexa.Ech
 	if enqueu {
 		playBehavior = "REPLACE_ENQUEUED"
 	}
-
+        Artist, Album, Track := shared.GetPlayingInfoTrackID(trackID)
 	return alexa.EchoDirective{
 		Type:         "AudioPlayer.Play",
 		PlayBehavior: playBehavior,
@@ -363,7 +363,10 @@ func makeAudioPlayDirective(fileName string, enqueu bool, trackID int) alexa.Ech
 			Stream: alexa.EchoStream{
 				Url:                  shared.UrlEncode(fileName),
 				Token:                fmt.Sprintf("NMP~%d~%s", trackID, time.Now().Format("20060102T150405999999")),
-				OffsetInMilliseconds: 0}}}
+                                OffsetInMilliseconds: 0},
+                        Metadata: alexa.AudioItemMetadata{
+                                                Title: Artist,
+                                                Subtitle: Track +"\n"+ Album}}}
 }
 
 func extractTrackID(Token string) (TKid int) {
