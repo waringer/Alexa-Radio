@@ -278,6 +278,30 @@ func radioHandler(echoReq *alexa.EchoRequest, echoResp *alexa.EchoResponse) {
 				echoResp.OutputSpeechSSML(speech).Card("Network Music Player", card)
 			}
 		}
+	case "StartPlayMusic":
+                log.Printf("StartPlayMusic intent")
+                log.Println("====> all files in music-folder")
+
+                shared.UpdateActualPlayingMusic(echoReq.Context.System.Device.DeviceId, "")
+                nextTrackID := shared.GetNextTrackID(echoReq.Context.System.Device.DeviceId)
+                nextFileName := shared.GetTrackFileName(nextTrackID)
+
+                shared.SwitchShuffle(echoReq.Context.System.Device.DeviceId, true)
+
+                if nextFileName != "" {
+                        directive := makeAudioPlayDirective(nextFileName, false, nextTrackID)
+                        log.Println("URL:", directive.AudioItem.Stream.Url)
+
+                        card := fmt.Sprintf(getRandomResponse(responses.Searching), "Music") // ich such ja schon %s raus
+                        speech := fmt.Sprintf("<speak>%s</speak>", card)
+                        echoResp.OutputSpeechSSML(speech).Card("Network Music Player", card)
+
+                        echoResp.Response.Directives = append(echoResp.Response.Directives, directive)
+                } else {
+                        card := fmt.Sprintf(getRandomResponse(responses.CantFind), "Music") // Ich konnte für %s absolut nix finden!
+                        speech := fmt.Sprintf("<speak>%s</speak>", card)
+                        echoResp.OutputSpeechSSML(speech).Card("Network Music Player", card)
+                }
 	case "StartPlayAlbumOrTitle":
 		log.Printf("StartPlayAlbumOrTitle intent")
 		SEARCHAlbumOrTitle := strings.TrimSpace(echoReq.Request.Intent.Slots["AlbumOrTitle"].Value)

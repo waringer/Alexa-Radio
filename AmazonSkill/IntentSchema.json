@@ -1,6 +1,10 @@
 {
   "intents": [
     {
+      "slots": [],
+      "intent": "StartPlayMusic"
+    },
+    {
       "slots": [
         {
           "name": "Searching",

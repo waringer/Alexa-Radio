@@ -173,6 +173,13 @@ func UpdateActualPlaying(deviceID, searching string) {
 	}
 }
 
+func UpdateActualPlayingMusic(deviceID, searching string) {
+        _, err := Database.Exec("CALL spUpdateActualPlayingMusic(?);", deviceID)
+        if err != nil {
+                log.Println("DB Error UpdateActualPlayingMusic:", err)
+        }
+}
+
 func UpdateActualPlayingAlbumOrTitle(deviceID, searchAlbumOrTitle string, searchArtist string) {
         _, err := Database.Exec("CALL spUpdateActualPlayingAlbumOrTitle(?,?,?);", deviceID, searchAlbumOrTitle, searchArtist)
         if err != nil {

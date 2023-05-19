@@ -251,6 +251,36 @@ BEGIN
 END//
 DELIMITER ;
 
+-- Exportiere Struktur von Prozedur spUpdateActualPlaying
+DROP PROCEDURE IF EXISTS `spUpdateActualPlayingMusic`;
+DELIMITER //
+CREATE PROCEDURE `spUpdateActualPlayingMusic`(
+        IN `deviceid` VARCHAR(250)
+)
+    READS SQL DATA
+BEGIN
+        IF (SELECT 1 = 1 FROM DeVice WHERE DV_id = deviceid) THEN
+        BEGIN
+                DELETE FROM ActualPlaying WHERE AP_DV_id = deviceid;
+
+                DROP TABLE IF EXISTS tmppl;
+                CREATE TEMPORARY TABLE tmppl (`tmp_id` INT(10) UNSIGNED NOT NULL AUTO_INCREMENT, `tmp_TKid` INT(10) UNSIGNED NOT NULL, PRIMARY KEY (`tmp_id`));
+
+                INSERT INTO tmppl
+                SELECT null, TracK.TK_id
+                FROM TracK
+                LEFT JOIN ArtisT ON TK_AT_id = AT_id
+                LEFT JOIN AlbuM ON TK_AM_id = AM_id
+                WHERE TK_FileName LIKE "//musik%"
+                ORDER BY AT_id, AM_Index, AM_id, TK_Index, TK_id;
+
+                INSERT INTO ActualPlaying
+                SELECT deviceid, tmppl.tmp_TKid, tmppl.tmp_id, 0 FROM tmppl;
+        END;
+        END IF;
+END//
+DELIMITER ;
+
 -- Exportiere Struktur von Prozedur spUpdateActualPlayingAlbumOrTitle
 DROP PROCEDURE IF EXISTS `spUpdateActualPlayingAlbumOrTitle`;
 DELIMITER //

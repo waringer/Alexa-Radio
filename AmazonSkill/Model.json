@@ -4,6 +4,13 @@
             "invocationName": "<SKILLNAME>",
             "intents": [
                 {
+                    "name": "StartPlayMusic",
+                    "slots": [],
+                    "samples": [
+                        "spiele Musik"
+                    ]
+                },
+                {
                     "name": "StartPlay",
                     "slots": [
                         {
