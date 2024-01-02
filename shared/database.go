@@ -187,6 +187,25 @@ func UpdateActualPlayingAlbumOrTitle(deviceID, searchAlbumOrTitle string, search
         }
 }
 
+func UpdateActualPlayList(deviceID, SearchString string) {
+        _, err := Database.Exec("CALL spUpdateActualPlayList(?,?);", deviceID, SearchString)
+        if err != nil {
+                log.Println("DB Error spUpdateActualPlayList:", err)
+        }
+}
+
+func GetTrackID(deviceID string) (TrackID int) {
+	var TK_id int
+        err := Database.QueryRow("SELECT TK_id FROM vTrackInfo INNER JOIN DeVice ON DV_LastTKid = TK_id WHERE DV_id = ?;", deviceID).Scan(&TK_id)
+        if err != nil {
+                log.Println("DB Error GetPlayingInfo:", err)
+        }
+
+        TrackID = TK_id
+
+        return
+}
+
 func GetNextTrackID(deviceID string) (TrackID int) {
 	isRandom := 0
 
@@ -246,6 +265,59 @@ func GetPlayingInfoTrackID(TrackID int) (Artist, Album, Trackname string) {
         Trackname = strings.TrimSpace(Trackname)
 
         return
+}
+
+
+func GetPlayListNames(deviceID string) ([]playLists) {
+        rows, err := Database.Query("SELECT PT_Name FROM PlaylisT")
+        if err != nil {
+                log.Println("DB Error GetPlayListNames:", err)
+        }
+        defer rows.Close()
+
+	var res []playLists
+        for rows.Next() {
+		var list playLists
+        err := rows.Scan(&list.PT_Name)
+        if err != nil {
+                log.Fatal(err)
+                }
+        fmt.Println(list)
+		res = append(res, list)
+	}
+	return res
+}
+
+func GetPlayListInfo(SearchString string ) (PT_id int, PT_Name string) {
+        err := Database.QueryRow("SELECT PT_id, PT_Name FROM PlaylisT WHERE PT_Name SOUNDS LIKE ?;", SearchString).Scan(&PT_id, &PT_Name)
+        if err != nil {
+                log.Println("DB Error GetPlayListInfo:", err)
+        }
+
+	PT_id = PT_id
+        PT_Name = strings.TrimSpace(PT_Name)
+
+        return
+}
+
+func AddToPlayList(PT_id int, FileName string) {
+        _, err := Database.Exec("INSERT IGNORE INTO PlaylistitemS (PS_PT_id, PS_TK_FileName) VALUES (?,?)", PT_id, FileName )
+        if err != nil {
+                log.Println("DB Error AddToPlayList:", err)
+        }
+
+        return
+
+}
+
+func RemoveFromPlayList(PT_id int, FileName string) {
+        _, err := Database.Exec("DELETE FROM PlaylistitemS WHERE PS_PT_id = ? and PS_TK_FileName = ?", PT_id, FileName )
+        if err != nil {
+                log.Println("DB Error RemoveFromPlayList:", err)
+        }
+
+        return
+
 }
 
 func SwitchShuffle(deviceID string, shuffle bool) {

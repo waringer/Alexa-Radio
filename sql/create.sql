@@ -17,6 +17,27 @@ CREATE TABLE IF NOT EXISTS `ActualPlaying` (
   CONSTRAINT `FK_ActualPlaying_TracK` FOREIGN KEY (`AP_TK_id`) REFERENCES `TracK` (`TK_id`)
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8;
 
+-- Exportiere Struktur von Tabelle PlaylisT
+DROP TABLE IF EXISTS `PlaylisT`;
+CREATE TABLE IF NOT EXISTS `PlaylisT` (
+  `PT_id` int(10) unsigned NOT NULL AUTO_INCREMENT,
+  `PT_Name` varchar(200) NOT NULL DEFAULT '0',
+  PRIMARY KEY (`PT_id`),
+  UNIQUE KEY `AM_Name` (`PT_Name`)
+) ENGINE=InnoDB DEFAULT CHARSET=utf8;
+
+
+-- Exportiere Struktur von Tabelle PlaylistitemS
+DROP TABLE IF EXISTS `PlaylistitemS`;
+CREATE TABLE IF NOT EXISTS `PlaylistitemS` (
+  `PS_id` int(10) unsigned NOT NULL AUTO_INCREMENT,
+  `PS_PT_id` int(10) NOT NULL DEFAULT '0',
+  `PS_TK_FileName` varchar(200) NOT NULL DEFAULT '0',
+  
+  PRIMARY KEY (`PS_id`)
+) ENGINE=InnoDB DEFAULT CHARSET=utf8;
+
+
 -- Exportiere Struktur von Tabelle AlbuM
 DROP TABLE IF EXISTS `AlbuM`;
 CREATE TABLE IF NOT EXISTS `AlbuM` (
@@ -319,6 +340,40 @@ BEGIN
 			ORDER BY AT_id, AM_Index, AM_id, TK_Index, TK_id;
 		END;
 		END IF;
+
+		INSERT INTO ActualPlaying
+		SELECT deviceid, tmppl.tmp_TKid, tmppl.tmp_id, 0 FROM tmppl;
+	END;
+	END IF;
+END//
+DELIMITER ;
+
+
+-- Exportiere Struktur von Prozedur spUpdateActualPlayList
+DROP PROCEDURE IF EXISTS `spUpdateActualPlayList`;
+DELIMITER //
+CREATE PROCEDURE `spUpdateActualPlayList`(
+        IN `deviceid` VARCHAR(250),
+        IN `SearchString` VARCHAR(500)
+)
+    READS SQL DATA
+BEGIN
+	IF (SELECT 1 = 1 FROM DeVice WHERE DV_id = deviceid) THEN
+	BEGIN
+		SET @PlayList = CONCAT('%', SearchString, '%');
+		DELETE FROM ActualPlaying WHERE AP_DV_id = deviceid;
+
+		DROP TABLE IF EXISTS tmppl;
+		CREATE TEMPORARY TABLE tmppl (`tmp_id` INT(10) UNSIGNED NOT NULL AUTO_INCREMENT, `tmp_TKid` INT(10) UNSIGNED NOT NULL, PRIMARY KEY (`tmp_id`));
+
+		INSERT INTO tmppl
+		SELECT null, TracK.TK_id
+		FROM PlaylistitemS
+		LEFT JOIN PlaylisT on PT_id = PS_PT_id
+		LEFT JOIN TracK ON PS_TK_FileName = TK_FileName
+		LEFT JOIN ArtisT ON TK_AT_id = AT_id
+		LEFT JOIN AlbuM ON TK_AM_id = AM_id
+		WHERE PT_Name SOUNDS LIKE @PlayList;
 
 		INSERT INTO ActualPlaying
 		SELECT deviceid, tmppl.tmp_TKid, tmppl.tmp_id, 0 FROM tmppl;

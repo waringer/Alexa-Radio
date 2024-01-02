@@ -46,6 +46,10 @@ type TrackInfo struct {
 	Comment    string
 }
 
+type playLists struct {
+	PT_Name string
+}
+
 // ScannerInfo structure to hold config values for a scanner task
 type ScannerInfo struct {
 	ActualConf ScannerConfiguration
