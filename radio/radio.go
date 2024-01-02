@@ -481,6 +481,7 @@ func makeAudioPlayDirective(fileName string, enqueu bool, trackID int) alexa.Ech
 		playBehavior = "REPLACE_ENQUEUED"
 	}
         Artist, Album, Track := shared.GetPlayingInfoTrackID(trackID)
+	Album = Album + ""
 	return alexa.EchoDirective{
 		Type:         "AudioPlayer.Play",
 		PlayBehavior: playBehavior,
@@ -490,8 +491,8 @@ func makeAudioPlayDirective(fileName string, enqueu bool, trackID int) alexa.Ech
 				Token:                fmt.Sprintf("NMP~%d~%s", trackID, time.Now().Format("20060102T150405999999")),
                                 OffsetInMilliseconds: 0},
                         Metadata: alexa.AudioItemMetadata{
-                                                Title: Artist,
-                                                Subtitle: Track +"\n"+ Album}}}
+                                                Title: Track,
+                                                Subtitle: Artist}}}
 }
 
 func extractTrackID(Token string) (TKid int) {
