@@ -454,7 +454,36 @@ func radioHandler(echoReq *alexa.EchoRequest, echoResp *alexa.EchoResponse) {
 				speech := fmt.Sprintf("<speak>%s</speak>", card)
 				echoResp.OutputSpeechSSML(speech).Card("Network Music Player", card)
 			}
+		}
+	case "StartPlayEpisode":
+		log.Printf("StartPlayEpisode intent")
+		SEARCHEpisode := strings.TrimSpace(echoReq.Request.Intent.Slots["Episode"].Value)
+		SEARCHArtistName := strings.TrimSpace(echoReq.Request.Intent.Slots["ArtistName"].Value)
+		SearchString := "\"" + SEARCHEpisode + "\"" + " von " + SEARCHArtistName
+		log.Println("====>", SearchString)
+		log.Println("====>", SEARCHEpisode, SEARCHArtistName)
 
+		shared.SwitchShuffle(echoReq.Context.System.Device.DeviceId, false)
+
+		if SearchString != "" {
+			shared.UpdateActualPlayingEpisode(echoReq.Context.System.Device.DeviceId, SEARCHEpisode, SEARCHArtistName)
+			nextTrackID := shared.GetNextTrackID(echoReq.Context.System.Device.DeviceId)
+			nextFileName := shared.GetTrackFileName(nextTrackID)
+
+			if nextFileName != "" {
+				directive := makeAudioPlayDirective(nextFileName, false, nextTrackID)
+				log.Println("URL:", directive.AudioItem.Stream.Url)
+
+				card := fmt.Sprintf(getRandomResponse(responses.Searching), SearchString) // ich such ja schon %s raus
+				speech := fmt.Sprintf("<speak>%s</speak>", card)
+				echoResp.OutputSpeechSSML(speech).Card("Network Music Player", card)
+
+				echoResp.Response.Directives = append(echoResp.Response.Directives, directive)
+			} else {
+				card := fmt.Sprintf(getRandomResponse(responses.CantFind), SearchString) // Ich konnte für %s absolut nix finden!
+				speech := fmt.Sprintf("<speak>%s</speak>", card)
+				echoResp.OutputSpeechSSML(speech).Card("Network Music Player", card)
+			}
 		} else {
 			goto AskUser
 		}

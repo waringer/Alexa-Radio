@@ -1,3 +1,5 @@
+github.com/bschirrmeister/go-alexa v0.0.0-20230519192018-672f0ae3e6f5 h1:dJkSm+SBIZm5IJ9MJ1+/gfDnK97eJ9LDONyDYd9LYX0=
+github.com/bschirrmeister/go-alexa v0.0.0-20230519192018-672f0ae3e6f5/go.mod h1:Pjul/9ZrM7XM6HKUxlvtArDC8lEB/XYMXrGsSfbbn3A=
 github.com/codegangsta/negroni v1.0.0 h1:+aYywywx4bnKXWvoWtRfJ91vC59NbEhEY03sZjQhbVY=
 github.com/codegangsta/negroni v1.0.0/go.mod h1:v0y3T5G7Y1UlFfyxFn/QLRU4a2EuNau2iZY63YTKWo0=
 github.com/go-sql-driver/mysql v1.6.0 h1:BCTh4TKNUYmOmMUcQ3IipzF5prigylS7XXjEkfCHuOE=

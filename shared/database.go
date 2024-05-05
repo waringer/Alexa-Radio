@@ -187,6 +187,13 @@ func UpdateActualPlayingAlbumOrTitle(deviceID, searchAlbumOrTitle string, search
         }
 }
 
+func UpdateActualPlayingEpisode(deviceID, searchEpisode string, searchArtist string) {
+	_, err := Database.Exec("CALL spUpdateActualPlayingEpisode(?,?,?);", deviceID, searchEpisode, searchArtist)
+	if err != nil {
+			log.Println("DB Error UpdateActualPlayingEpisode:", err)
+	}
+}
+
 func UpdateActualPlayList(deviceID, SearchString string) {
         _, err := Database.Exec("CALL spUpdateActualPlayList(?,?);", deviceID, SearchString)
         if err != nil {

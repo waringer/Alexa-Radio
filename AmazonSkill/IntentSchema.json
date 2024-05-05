@@ -16,6 +16,19 @@
     {
       "slots": [
         {
+          "name": "{Episode}",
+          "type": "SEARCHEpisode"
+        },
+        {
+          "name": "{ArtistName}",
+          "type": "SEARCHArtistName"
+        }
+      ],
+      "intent": "StartPlayEpisode"
+    },
+    {
+      "slots": [
+        {
           "name": "{AlbumOrTitle}",
           "type": "SEARCHAlbumOrTitle"
         },

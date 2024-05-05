@@ -32,6 +32,26 @@
                     ]
                 },
                 {
+                    "name": "StartPlayEpisode",
+                    "slots": [
+                        {
+                            "name": "Episode",
+                            "type": "SEARCHEpisode"
+                        },
+                        {
+                            "name": "ArtistName",
+                            "type": "SEARCHArtistName"
+                        }
+                    ],
+                    "samples": [
+                        "spiele Folge {Episode} von {ArtistName}",
+                        "spiel Folge {Episode} von {ArtistName}",
+                        "spiele Episode {Episode} von {ArtistName}",
+                        "spiel Episode {Episode} von {ArtistName}",
+                        "spiele {ArtistName} Folge {Episode}"
+                    ]
+                },
+                {
                     "name": "StartPlayAlbumOrTitle",
                     "slots": [
                         {
@@ -274,6 +294,31 @@
                         {
                             "name": {
                                 "value": "An Cafe"
+                            }
+                        }
+                    ]
+                },
+                {
+                    "name": "SEARCHEpisode",
+                    "values": [
+                        {
+                            "name": {
+                                "value": "100"
+                            }
+                        },
+                        {
+                            "name": {
+                                "value": "001 - 003"
+                            }
+                        },
+                        {
+                            "name": {
+                                "value": "10"
+                            }
+                        },
+                        {
+                            "name": {
+                                "value": "0"
                             }
                         }
                     ]
