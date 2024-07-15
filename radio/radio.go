@@ -13,7 +13,7 @@ import (
 	"strings"
 	"time"
 
-	"github.com/waringer/Alexa-Radio/shared"
+	"github.com/bschirrmeister/Alexa-Radio/shared"
 
 	"github.com/codegangsta/negroni"
 	_ "github.com/go-sql-driver/mysql"
@@ -95,9 +95,10 @@ func audioHandler(echoReq *alexa.EchoRequest, echoResp *alexa.EchoResponse) {
 	switch echoReq.Request.Type {
 	case "AudioPlayer.PlaybackStarted":
 		log.Printf("type AudioPlayer.PlaybackStarted")
-		shared.MarkTrackPlayed(echoReq.Context.System.Device.DeviceId, extractTrackID(echoReq.Request.Token))
+		shared.MarkTrackSelected(echoReq.Context.System.Device.DeviceId, extractTrackID(echoReq.Request.Token))
 	case "AudioPlayer.PlaybackStopped":
 		log.Printf("type AudioPlayer.PlaybackStopped")
+		shared.MarkTrackPlayed(echoReq.Context.System.Device.DeviceId, extractTrackID(echoReq.Request.Token))
 	case "AudioPlayer.PlaybackFinished":
 		log.Printf("type AudioPlayer.PlaybackFinished")
 	case "AudioPlayer.PlaybackFailed":
@@ -107,6 +108,7 @@ func audioHandler(echoReq *alexa.EchoRequest, echoResp *alexa.EchoResponse) {
 		if !shared.ShouldStopPlaying(echoReq.Context.System.Device.DeviceId) {
 			nextTrackID := shared.GetNextTrackID(echoReq.Context.System.Device.DeviceId)
 			nextFileName := shared.GetTrackFileName(nextTrackID)
+			shared.MarkTrackPlayed(echoReq.Context.System.Device.DeviceId, extractTrackID(echoReq.Request.Token))
 
 			if nextFileName != "" {
 				directive := makeAudioPlayDirective(nextFileName, true, nextTrackID)
@@ -201,6 +203,25 @@ func radioHandler(echoReq *alexa.EchoRequest, echoResp *alexa.EchoResponse) {
 			echoResp.OutputSpeechSSML(speech).Card("Network Music Player", card)
 		}
 		log.Printf("Next intent")
+	case "AMAZON.PreviousIntent":
+		if !shared.ShouldStopPlaying(echoReq.Context.System.Device.DeviceId) {
+			playingTrackID := shared.GetPlayingTrackID(echoReq.Context.System.Device.DeviceId)
+			prevTrackID := shared.GetPrevTrackID(echoReq.Context.System.Device.DeviceId, playingTrackID)
+			prevFileName := shared.GetTrackFileName(prevTrackID)
+			log.Println("PLAY:", playingTrackID, "PREV:", prevTrackID, "FILENAME:", prevFileName)
+
+			if prevFileName != "" {
+				directive := makeAudioPlayDirective(prevFileName, false, prevTrackID)
+				log.Println("URL:", directive.AudioItem.Stream.Url)
+				echoResp.Response.Directives = append(echoResp.Response.Directives, directive)
+			}
+		} else {
+			//inform user that playlist is at end
+			card := fmt.Sprint(getRandomResponse(responses.PlaylistEnd)) // Puh, endlich kann ich ausruhen! Playlist ist durch.
+			speech := fmt.Sprintf("<speak>%s</speak>", card)
+			echoResp.OutputSpeechSSML(speech).Card("Network Music Player", card)
+		}
+		log.Printf("PreviousIntent intent")
 	case "AMAZON.HelpIntent":
 		log.Printf("Help intent")
 		fallthrough

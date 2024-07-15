@@ -11,6 +11,9 @@ CREATE TABLE IF NOT EXISTS `ActualPlaying` (
   `AP_TK_id` int(10) unsigned NOT NULL,
   `AP_Sort` int(10) unsigned NOT NULL DEFAULT '0',
   `AP_Playcount` int(10) NOT NULL DEFAULT '0',
+  `AP_LastSelected` timestamp DEFAULT NULL,
+  `AP_LastPlayed` timestamp DEFAULT NULL,
+  `AP_Pos` int(10) NOT NULL DEFAULT '0',
   PRIMARY KEY (`AP_DV_id`,`AP_TK_id`),
   KEY `FK_ActualPlaying_TracK` (`AP_TK_id`),
   CONSTRAINT `FK_ActualPlaying_DeVice` FOREIGN KEY (`AP_DV_id`) REFERENCES `DeVice` (`DV_id`),
@@ -174,42 +177,84 @@ DELIMITER ;
 DROP FUNCTION IF EXISTS `fnGetNextTrackId`;
 DELIMITER //
 CREATE FUNCTION `fnGetNextTrackId`(
+    `deviceid` VARCHAR(250),
+    `isRandom` INT,
+	`currentTrackId` INT(10)
+
+) RETURNS int(11)
+BEGIN
+    DECLARE TKid INT DEFAULT NULL;
+    DECLARE PlayCount INT DEFAULT NULL;
+    DECLARE MyPos INT DEFAULT NULL;
+    DECLARE NextPos INT DEFAULT NULL;
+    SELECT AP_Pos INTO MyPos FROM ActualPlaying WHERE AP_DV_id = deviceid AND AP_TK_id = currentTrackId;
+	SELECT AP_Pos INTO NextPos FROM ActualPlaying WHERE AP_DV_id = deviceid AND AP_Pos = (SELECT AP_Pos FROM ActualPlaying WHERE AP_DV_id = deviceid AND AP_TK_id = currentTrackId)+1;
+    IF (NextPos > MyPos) THEN
+        SELECT AP_TK_id INTO TKid FROM ActualPlaying WHERE AP_DV_id = deviceid AND AP_Pos = (SELECT AP_Pos FROM ActualPlaying WHERE AP_DV_id = deviceid AND AP_TK_id = currentTrackId)+1;
+    ELSEIF (isRandom = 0) THEN
+        SELECT TK_id, AP_Playcount INTO TKid, PlayCount FROM ActualPlaying INNER JOIN TracK ON AP_TK_id = TK_id WHERE AP_DV_id = deviceid ORDER BY AP_Playcount, AP_Sort, AP_TK_id LIMIT 1;
+    ELSE
+    BEGIN	
+        DECLARE MinPC INT DEFAULT NULL;
+        SELECT MIN(AP_Playcount) INTO MinPC FROM ActualPlaying WHERE AP_DV_id = deviceid;
+        SELECT TK_id, AP_Playcount INTO TKid, PlayCount FROM ActualPlaying INNER JOIN TracK ON AP_TK_id = TK_id WHERE AP_Playcount = MinPC AND AP_DV_id = deviceid ORDER BY RAND() LIMIT 1;
+    END;
+    END IF;
+
+    IF TKid IS NOT NULL THEN
+        RETURN TKid;
+    ELSE
+        RETURN -1;
+    END IF;
+END//
+DELIMITER ;
+
+-- Exportiere Struktur von Funktion radiogo.fnGetPrevTrackID
+DROP FUNCTION IF EXISTS `fnGetPrevTrackID`;
+DELIMITER //
+CREATE FUNCTION `fnGetPrevTrackID`(
 	`deviceid` VARCHAR(250),
-	`isRandom` INT
+	`currentTrackId` INT(10)
 
 ) RETURNS int(11)
 BEGIN
 	DECLARE TKid INT DEFAULT NULL;
-	DECLARE PlayCount INT DEFAULT NULL;
 	
-	IF (isRandom = 0) THEN
-		SELECT TK_id, AP_Playcount INTO TKid, PlayCount FROM ActualPlaying INNER JOIN TracK ON AP_TK_id = TK_id WHERE AP_DV_id = deviceid ORDER BY AP_Playcount, AP_Sort, AP_TK_id LIMIT 1;
-	ELSE
-	BEGIN	
-		DECLARE MinPC INT DEFAULT NULL;
-		SELECT MIN(AP_Playcount) INTO MinPC FROM ActualPlaying WHERE AP_DV_id = deviceid;
-		SELECT TK_id, AP_Playcount INTO TKid, PlayCount FROM ActualPlaying INNER JOIN TracK ON AP_TK_id = TK_id WHERE AP_Playcount = MinPC AND AP_DV_id = deviceid ORDER BY RAND() LIMIT 1;
-	END;
-	END IF;
+	SELECT AP_TK_id INTO TKid FROM ActualPlaying WHERE AP_Pos < (SELECT AP_Pos FROM ActualPlaying WHERE AP_TK_id = currentTrackId) order by AP_Pos DESC limit 1;
 
-	IF TKid IS NOT NULL THEN
-		RETURN TKid;
-	ELSE
-		RETURN -1;
-	END IF;
+    IF TKid IS NOT NULL THEN
+        RETURN TKid;
+    ELSE
+        RETURN -1;
+    END IF;
 END//
 DELIMITER ;
 
+
 -- Exportiere Struktur von Prozedur radiogo.spMarkTackPlayed
-DROP PROCEDURE IF EXISTS `spMarkTackPlayed`;
+DROP PROCEDURE IF EXISTS `spMarkTrackPlayed`;
 DELIMITER //
-CREATE PROCEDURE `spMarkTackPlayed`(
+CREATE PROCEDURE `spMarkTrackPlayed`(
 	IN `deviceid` VARCHAR(250),
 	IN `TKid` INT
 
 )
 BEGIN
-	UPDATE ActualPlaying SET AP_Playcount =  AP_Playcount + 1 WHERE AP_DV_id = deviceid AND AP_TK_id = TKid;
+	UPDATE ActualPlaying SET AP_Playcount =  AP_Playcount + 1, AP_LastPlayed = CURRENT_TIMESTAMP WHERE AP_DV_id = deviceid AND AP_TK_id = TKid;
+	UPDATE DeVice SET DV_LastTKid = TKid WHERE DV_id = deviceid;
+END//
+DELIMITER ;
+
+-- Exportiere Struktur von Prozedur radiogo.spMarkTackSelected
+DROP PROCEDURE IF EXISTS `spMarkTrackSelected`;
+DELIMITER //
+CREATE PROCEDURE `spMarkTrackSelected`(
+	IN `deviceid` VARCHAR(250),
+	IN `TKid` INT
+
+)
+BEGIN
+	UPDATE ActualPlaying SET AP_LastSelected = CURRENT_TIMESTAMP, AP_Pos=if(AP_Pos=0,(SELECT AP_Pos+1 FROM ActualPlaying WHERE AP_DV_id = deviceid ORDER BY AP_Pos DESC LIMIT 1),AP_Pos) WHERE AP_DV_id = deviceid AND AP_TK_id = TKid;
 	UPDATE DeVice SET DV_LastTKid = TKid WHERE DV_id = deviceid;
 END//
 DELIMITER ;
@@ -266,7 +311,7 @@ BEGIN
 		END IF;
 		
 		INSERT INTO ActualPlaying
-	 	SELECT deviceid, tmppl.tmp_TKid, tmppl.tmp_id, 0 FROM tmppl;
+        SELECT deviceid, tmppl.tmp_TKid, tmppl.tmp_id, 0, NULL, NULL, 0 FROM tmppl;
 	END;
 	END IF;
 END//
@@ -296,7 +341,7 @@ BEGIN
                 ORDER BY AT_id, AM_Index, AM_id, TK_Index, TK_id;
 
                 INSERT INTO ActualPlaying
-                SELECT deviceid, tmppl.tmp_TKid, tmppl.tmp_id, 0 FROM tmppl;
+       			SELECT deviceid, tmppl.tmp_TKid, tmppl.tmp_id, 0, NULL, NULL, 0 FROM tmppl;
         END;
         END IF;
 END//
@@ -342,7 +387,7 @@ BEGIN
 		END IF;
 
 		INSERT INTO ActualPlaying
-		SELECT deviceid, tmppl.tmp_TKid, tmppl.tmp_id, 0 FROM tmppl;
+        SELECT deviceid, tmppl.tmp_TKid, tmppl.tmp_id, 0, NULL, NULL, 0 FROM tmppl;
 	END;
 	END IF;
 END//
@@ -372,7 +417,7 @@ BEGIN
                 ORDER BY AT_id, AM_Index, AM_id, TK_Index, TK_id;
 
                 INSERT INTO ActualPlaying
-                SELECT deviceid, tmppl.tmp_TKid, tmppl.tmp_id, 0 FROM tmppl;
+        		SELECT deviceid, tmppl.tmp_TKid, tmppl.tmp_id, 0, NULL, NULL, 0 FROM tmppl;
         END;
         END IF;
 END//
@@ -405,7 +450,7 @@ BEGIN
 		WHERE PT_Name SOUNDS LIKE @PlayList;
 
 		INSERT INTO ActualPlaying
-		SELECT deviceid, tmppl.tmp_TKid, tmppl.tmp_id, 0 FROM tmppl;
+        SELECT deviceid, tmppl.tmp_TKid, tmppl.tmp_id, 0, NULL, NULL, 0 FROM tmppl;
 	END;
 	END IF;
 END//

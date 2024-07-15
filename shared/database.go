@@ -215,14 +215,25 @@ func GetTrackID(deviceID string) (TrackID int) {
 
 func GetNextTrackID(deviceID string) (TrackID int) {
 	isRandom := 0
+	playingTrackID := GetPlayingTrackID(deviceID)
 
 	if getShuffleStatus(deviceID) {
 		isRandom = 1
 	}
 
-	err := Database.QueryRow("SELECT fnGetNextTrackId(?, ?);", deviceID, isRandom).Scan(&TrackID)
+	err := Database.QueryRow("SELECT fnGetNextTrackId(?, ?, ?);", deviceID, isRandom, playingTrackID).Scan(&TrackID)
 	if err != nil {
 		log.Println("DB Error GetNextTrackID:", err)
+	}
+
+	return
+}
+
+func GetPrevTrackID(deviceID string, currentTrackId int) (TrackID int) {
+	log.Println("GetPrevTrackID:", deviceID, currentTrackId)
+	err := Database.QueryRow("SELECT fnGetPrevTrackID(?, ?);", deviceID, currentTrackId).Scan(&TrackID)
+	if err != nil {
+		log.Println("DB Error GetPrevTrackID:", err)
 	}
 
 	return
@@ -242,9 +253,16 @@ func GetTrackFileName(TrackID int) (FileName string) {
 }
 
 func MarkTrackPlayed(deviceID string, TrackID int) {
-	_, err := Database.Exec("CALL spMarkTackPlayed(?, ?)", deviceID, TrackID)
+	_, err := Database.Exec("CALL spMarkTrackPlayed(?, ?)", deviceID, TrackID)
 	if err != nil {
 		log.Println("DB Error MarkTrackPlayed:", err, deviceID, TrackID)
+	}
+}
+
+func MarkTrackSelected(deviceID string, TrackID int) {
+	_, err := Database.Exec("CALL spMarkTrackSelected(?, ?)", deviceID, TrackID)
+	if err != nil {
+		log.Println("DB Error MarkTrackSelected:", err, deviceID, TrackID)
 	}
 }
 
@@ -257,6 +275,17 @@ func GetPlayingInfo(deviceID string) (Artist, Album, Trackname string) {
 	Artist = strings.TrimSpace(Artist)
 	Album = strings.TrimSpace(Album)
 	Trackname = strings.TrimSpace(Trackname)
+
+	return
+}
+
+func GetPlayingTrackID(deviceID string) (TK_id int) {
+	err := Database.QueryRow("select TK_id from vTrackInfo INNER JOIN DeVice ON DV_LastTKid = TK_id WHERE DV_id = ?;", deviceID).Scan(&TK_id)
+	if err != nil {
+		log.Println("DB Error GetPlayingTrackID:", err)
+	}
+
+	TK_id = TK_id
 
 	return
 }
