@@ -219,9 +219,8 @@ CREATE FUNCTION `fnGetPrevTrackID`(
 ) RETURNS int(11)
 BEGIN
 	DECLARE TKid INT DEFAULT NULL;
+	SELECT AP_TK_id INTO TKid FROM ActualPlaying WHERE AP_DV_id = deviceid AND AP_Pos < (SELECT AP_Pos FROM ActualPlaying WHERE AP_DV_id = deviceid AND AP_TK_id = currentTrackId) order by AP_Pos DESC limit 1;
 	
-	SELECT AP_TK_id INTO TKid FROM ActualPlaying WHERE AP_Pos < (SELECT AP_Pos FROM ActualPlaying WHERE AP_TK_id = currentTrackId) order by AP_Pos DESC limit 1;
-
     IF TKid IS NOT NULL THEN
         RETURN TKid;
     ELSE
