@@ -8,7 +8,7 @@ Amazon Echo/Alexa Skill zum abspielen von Musik von einem NAS / Webserver
 
 Dokumentation des Skills in der [Wiki](https://github.com/waringer/Alexa-Radio/wiki)
 
-Eine Anleitung für die Installation und Inbetriebnahme des Skill ist [hier](https://h-blogx.hasenmueller.de/mit-amazon-echo-lokale-musik-hoeren/) zu finden. Ich danke Holger Hasenmüller vielmals für diese Anleitung!
+Eine Anleitung für die Installation und Inbetriebnahme des Skill ist [hier](https://www.hasenmueller.de/mit-amazon-echo-lokale-musik-hoeren/) zu finden. Ich danke Holger Hasenmüller vielmals für diese Anleitung!
 
 **--- English ---**
 
