@@ -13,12 +13,12 @@ import (
 	"strings"
 	"time"
 
-	"github.com/bschirrmeister/Alexa-Radio/shared"
+	"github.com/waringer/Alexa-Radio/shared"
 
 	"github.com/codegangsta/negroni"
 	_ "github.com/go-sql-driver/mysql"
 	"github.com/gorilla/mux"
-	alexa "github.com/bschirrmeister/go-alexa/skillserver"
+	alexa "github.com/waringer/go-alexa/skillserver"
 )
 
 var (
