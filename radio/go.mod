@@ -9,7 +9,7 @@ require (
 	github.com/go-sql-driver/mysql v1.6.0
 	github.com/gorilla/mux v1.8.0
 	github.com/waringer/Alexa-Radio/shared v0.0.0-00010101000000-000000000000
-	github.com/waringer/go-alexa v0.0.0-20180727050259-1f7196243c6f
+	github.com/waringer/go-alexa v0.0.0-20230519192018-672f0ae3e6f5
 )
 
 require (

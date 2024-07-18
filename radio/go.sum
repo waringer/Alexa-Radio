@@ -10,3 +10,5 @@ github.com/vmware/go-nfs-client v0.0.0-20190605212624-d43b92724c1b h1:RUrsc0B9xF
 github.com/vmware/go-nfs-client v0.0.0-20190605212624-d43b92724c1b/go.mod h1:psQdhrCc+fimC/8/U+PboPiIMcdmKgRdAtcMnhXhjzI=
 github.com/waringer/go-alexa v0.0.0-20180727050259-1f7196243c6f h1:NlMoY+/X5Wm31tWHSu0/2BlyCnYTXiBs9pRqxN9bRdY=
 github.com/waringer/go-alexa v0.0.0-20180727050259-1f7196243c6f/go.mod h1:4shPmsUZzYZb/VweMyyENxKtdDj63QijgkIdWVFfFj0=
+github.com/waringer/go-alexa v0.0.0-20230519192018-672f0ae3e6f5 h1:f/XiCi8sfn8l1UCIo3Sj/xV5+HZVmQew7Ja4Gt7OgQ8=
+github.com/waringer/go-alexa v0.0.0-20230519192018-672f0ae3e6f5/go.mod h1:4shPmsUZzYZb/VweMyyENxKtdDj63QijgkIdWVFfFj0=
