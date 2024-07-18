@@ -149,12 +149,23 @@ func radioHandler(echoReq *alexa.EchoRequest, echoResp *alexa.EchoResponse) {
 		//card := fmt.Sprint("Shuffle ist jetzt aus")
 		//speech = fmt.Sprintf("%s%s</speak>", speech, card)
 	case "AMAZON.StartOverIntent":
+                if !shared.ShouldStopPlaying(echoReq.Context.System.Device.DeviceId) {
+                        playingTrackID := shared.GetPlayingTrackID(echoReq.Context.System.Device.DeviceId)
+                        playingFileName := shared.GetTrackFileName(playingTrackID)
+
+                if playingFileName != "" {
+                                directive := makeAudioPlayDirective(playingFileName, false, playingTrackID)
+                                log.Println("URL:", directive.AudioItem.Stream.Url)
+                                echoResp.Response.Directives = append(echoResp.Response.Directives, directive)
+                        }
+                } else {
+                        //inform user that playlist is at end
+                        card := fmt.Sprint(getRandomResponse(responses.PlaylistEnd)) // Puh, endlich kann ich ausruhen! Playlist ist durch.
+                        speech := fmt.Sprintf("<speak>%s</speak>", card)
+                        echoResp.OutputSpeechSSML(speech).Card("Network Music Player", card)
+                }
 		log.Printf("StartOver intent")
 
-		//todo implement
-		card := fmt.Sprint(getRandomResponse(responses.NotImplemented)) // Stör mich jetzt nicht, ich hab zu tun!
-		speech := fmt.Sprintf("<speak>%s</speak>", card)
-		echoResp.OutputSpeechSSML(speech).Card("Network Music Player", card)
 	case "AMAZON.RepeatIntent":
 		log.Printf("Repeat intent")
 
