@@ -1,6 +1,10 @@
 {
   "intents": [
     {
+      "slots": [],
+      "intent": "StartPlayMusic"
+    },
+    {
       "slots": [
         {
           "name": "Searching",
@@ -8,6 +12,19 @@
         }
       ],
       "intent": "StartPlay"
+    },
+    {
+      "slots": [
+        {
+          "name": "{Episode}",
+          "type": "SEARCHEpisode"
+        },
+        {
+          "name": "{ArtistName}",
+          "type": "SEARCHArtistName"
+        }
+      ],
+      "intent": "StartPlayEpisode"
     },
     {
       "slots": [

@@ -11,11 +11,35 @@ CREATE TABLE IF NOT EXISTS `ActualPlaying` (
   `AP_TK_id` int(10) unsigned NOT NULL,
   `AP_Sort` int(10) unsigned NOT NULL DEFAULT '0',
   `AP_Playcount` int(10) NOT NULL DEFAULT '0',
+  `AP_LastSelected` timestamp DEFAULT NULL,
+  `AP_LastPlayed` timestamp DEFAULT NULL,
+  `AP_Pos` int(10) NOT NULL DEFAULT '0',
   PRIMARY KEY (`AP_DV_id`,`AP_TK_id`),
   KEY `FK_ActualPlaying_TracK` (`AP_TK_id`),
   CONSTRAINT `FK_ActualPlaying_DeVice` FOREIGN KEY (`AP_DV_id`) REFERENCES `DeVice` (`DV_id`),
   CONSTRAINT `FK_ActualPlaying_TracK` FOREIGN KEY (`AP_TK_id`) REFERENCES `TracK` (`TK_id`)
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8;
+
+-- Exportiere Struktur von Tabelle PlaylisT
+DROP TABLE IF EXISTS `PlaylisT`;
+CREATE TABLE IF NOT EXISTS `PlaylisT` (
+  `PT_id` int(10) unsigned NOT NULL AUTO_INCREMENT,
+  `PT_Name` varchar(200) NOT NULL DEFAULT '0',
+  PRIMARY KEY (`PT_id`),
+  UNIQUE KEY `AM_Name` (`PT_Name`)
+) ENGINE=InnoDB DEFAULT CHARSET=utf8;
+
+
+-- Exportiere Struktur von Tabelle PlaylistitemS
+DROP TABLE IF EXISTS `PlaylistitemS`;
+CREATE TABLE IF NOT EXISTS `PlaylistitemS` (
+  `PS_id` int(10) unsigned NOT NULL AUTO_INCREMENT,
+  `PS_PT_id` int(10) NOT NULL DEFAULT '0',
+  `PS_TK_FileName` varchar(200) NOT NULL DEFAULT '0',
+  
+  PRIMARY KEY (`PS_id`)
+) ENGINE=InnoDB DEFAULT CHARSET=utf8;
+
 
 -- Exportiere Struktur von Tabelle AlbuM
 DROP TABLE IF EXISTS `AlbuM`;
@@ -153,42 +177,83 @@ DELIMITER ;
 DROP FUNCTION IF EXISTS `fnGetNextTrackId`;
 DELIMITER //
 CREATE FUNCTION `fnGetNextTrackId`(
+    `deviceid` VARCHAR(250),
+    `isRandom` INT,
+	`currentTrackId` INT(10)
+
+) RETURNS int(11)
+BEGIN
+    DECLARE TKid INT DEFAULT NULL;
+    DECLARE PlayCount INT DEFAULT NULL;
+    DECLARE MyPos INT DEFAULT NULL;
+    DECLARE NextPos INT DEFAULT NULL;
+    SELECT AP_Pos INTO MyPos FROM ActualPlaying WHERE AP_DV_id = deviceid AND AP_TK_id = currentTrackId;
+	SELECT AP_Pos INTO NextPos FROM ActualPlaying WHERE AP_DV_id = deviceid AND AP_Pos = (SELECT AP_Pos FROM ActualPlaying WHERE AP_DV_id = deviceid AND AP_TK_id = currentTrackId)+1;
+    IF (NextPos > MyPos) THEN
+        SELECT AP_TK_id INTO TKid FROM ActualPlaying WHERE AP_DV_id = deviceid AND AP_Pos = (SELECT AP_Pos FROM ActualPlaying WHERE AP_DV_id = deviceid AND AP_TK_id = currentTrackId)+1;
+    ELSEIF (isRandom = 0) THEN
+        SELECT TK_id, AP_Playcount INTO TKid, PlayCount FROM ActualPlaying INNER JOIN TracK ON AP_TK_id = TK_id WHERE AP_DV_id = deviceid ORDER BY AP_Playcount, AP_Sort, AP_TK_id LIMIT 1;
+    ELSE
+    BEGIN	
+        DECLARE MinPC INT DEFAULT NULL;
+        SELECT MIN(AP_Playcount) INTO MinPC FROM ActualPlaying WHERE AP_DV_id = deviceid;
+        SELECT TK_id, AP_Playcount INTO TKid, PlayCount FROM ActualPlaying INNER JOIN TracK ON AP_TK_id = TK_id WHERE AP_Playcount = MinPC AND AP_DV_id = deviceid ORDER BY RAND() LIMIT 1;
+    END;
+    END IF;
+
+    IF TKid IS NOT NULL THEN
+        RETURN TKid;
+    ELSE
+        RETURN -1;
+    END IF;
+END//
+DELIMITER ;
+
+-- Exportiere Struktur von Funktion radiogo.fnGetPrevTrackID
+DROP FUNCTION IF EXISTS `fnGetPrevTrackID`;
+DELIMITER //
+CREATE FUNCTION `fnGetPrevTrackID`(
 	`deviceid` VARCHAR(250),
-	`isRandom` INT
+	`currentTrackId` INT(10)
 
 ) RETURNS int(11)
 BEGIN
 	DECLARE TKid INT DEFAULT NULL;
-	DECLARE PlayCount INT DEFAULT NULL;
+	SELECT AP_TK_id INTO TKid FROM ActualPlaying WHERE AP_DV_id = deviceid AND AP_Pos < (SELECT AP_Pos FROM ActualPlaying WHERE AP_DV_id = deviceid AND AP_TK_id = currentTrackId) order by AP_Pos DESC limit 1;
 	
-	IF (isRandom = 0) THEN
-		SELECT TK_id, AP_Playcount INTO TKid, PlayCount FROM ActualPlaying INNER JOIN TracK ON AP_TK_id = TK_id WHERE AP_DV_id = deviceid ORDER BY AP_Playcount, AP_Sort, AP_TK_id LIMIT 1;
-	ELSE
-	BEGIN	
-		DECLARE MinPC INT DEFAULT NULL;
-		SELECT MIN(AP_Playcount) INTO MinPC FROM ActualPlaying WHERE AP_DV_id = deviceid;
-		SELECT TK_id, AP_Playcount INTO TKid, PlayCount FROM ActualPlaying INNER JOIN TracK ON AP_TK_id = TK_id WHERE AP_Playcount = MinPC AND AP_DV_id = deviceid ORDER BY RAND() LIMIT 1;
-	END;
-	END IF;
-
-	IF TKid IS NOT NULL THEN
-		RETURN TKid;
-	ELSE
-		RETURN -1;
-	END IF;
+    IF TKid IS NOT NULL THEN
+        RETURN TKid;
+    ELSE
+        RETURN -1;
+    END IF;
 END//
 DELIMITER ;
 
+
 -- Exportiere Struktur von Prozedur radiogo.spMarkTackPlayed
-DROP PROCEDURE IF EXISTS `spMarkTackPlayed`;
+DROP PROCEDURE IF EXISTS `spMarkTrackPlayed`;
 DELIMITER //
-CREATE PROCEDURE `spMarkTackPlayed`(
+CREATE PROCEDURE `spMarkTrackPlayed`(
 	IN `deviceid` VARCHAR(250),
 	IN `TKid` INT
 
 )
 BEGIN
-	UPDATE ActualPlaying SET AP_Playcount =  AP_Playcount + 1 WHERE AP_DV_id = deviceid AND AP_TK_id = TKid;
+	UPDATE ActualPlaying SET AP_Playcount =  AP_Playcount + 1, AP_LastPlayed = CURRENT_TIMESTAMP WHERE AP_DV_id = deviceid AND AP_TK_id = TKid;
+	UPDATE DeVice SET DV_LastTKid = TKid WHERE DV_id = deviceid;
+END//
+DELIMITER ;
+
+-- Exportiere Struktur von Prozedur radiogo.spMarkTackSelected
+DROP PROCEDURE IF EXISTS `spMarkTrackSelected`;
+DELIMITER //
+CREATE PROCEDURE `spMarkTrackSelected`(
+	IN `deviceid` VARCHAR(250),
+	IN `TKid` INT
+
+)
+BEGIN
+	UPDATE ActualPlaying SET AP_LastSelected = CURRENT_TIMESTAMP, AP_Pos=if(AP_Pos=0,(SELECT AP_Pos+1 FROM ActualPlaying WHERE AP_DV_id = deviceid ORDER BY AP_Pos DESC LIMIT 1),AP_Pos) WHERE AP_DV_id = deviceid AND AP_TK_id = TKid;
 	UPDATE DeVice SET DV_LastTKid = TKid WHERE DV_id = deviceid;
 END//
 DELIMITER ;
@@ -245,9 +310,39 @@ BEGIN
 		END IF;
 		
 		INSERT INTO ActualPlaying
-	 	SELECT deviceid, tmppl.tmp_TKid, tmppl.tmp_id, 0 FROM tmppl;
+        SELECT deviceid, tmppl.tmp_TKid, tmppl.tmp_id, 0, NULL, NULL, 0 FROM tmppl;
 	END;
 	END IF;
+END//
+DELIMITER ;
+
+-- Exportiere Struktur von Prozedur spUpdateActualPlaying
+DROP PROCEDURE IF EXISTS `spUpdateActualPlayingMusic`;
+DELIMITER //
+CREATE PROCEDURE `spUpdateActualPlayingMusic`(
+        IN `deviceid` VARCHAR(250)
+)
+    READS SQL DATA
+BEGIN
+        IF (SELECT 1 = 1 FROM DeVice WHERE DV_id = deviceid) THEN
+        BEGIN
+                DELETE FROM ActualPlaying WHERE AP_DV_id = deviceid;
+
+                DROP TABLE IF EXISTS tmppl;
+                CREATE TEMPORARY TABLE tmppl (`tmp_id` INT(10) UNSIGNED NOT NULL AUTO_INCREMENT, `tmp_TKid` INT(10) UNSIGNED NOT NULL, PRIMARY KEY (`tmp_id`));
+
+                INSERT INTO tmppl
+                SELECT null, TracK.TK_id
+                FROM TracK
+                LEFT JOIN ArtisT ON TK_AT_id = AT_id
+                LEFT JOIN AlbuM ON TK_AM_id = AM_id
+                WHERE TK_FileName LIKE "//musik%"
+                ORDER BY AT_id, AM_Index, AM_id, TK_Index, TK_id;
+
+                INSERT INTO ActualPlaying
+       			SELECT deviceid, tmppl.tmp_TKid, tmppl.tmp_id, 0, NULL, NULL, 0 FROM tmppl;
+        END;
+        END IF;
 END//
 DELIMITER ;
 
@@ -291,7 +386,70 @@ BEGIN
 		END IF;
 
 		INSERT INTO ActualPlaying
-		SELECT deviceid, tmppl.tmp_TKid, tmppl.tmp_id, 0 FROM tmppl;
+        SELECT deviceid, tmppl.tmp_TKid, tmppl.tmp_id, 0, NULL, NULL, 0 FROM tmppl;
+	END;
+	END IF;
+END//
+DELIMITER ;
+
+-- Exportiere Struktur von Prozedur spUpdateActualPlaying
+DROP PROCEDURE IF EXISTS `spUpdateActualPlayingMusic`;
+DELIMITER //
+CREATE PROCEDURE `spUpdateActualPlayingMusic`(
+        IN `deviceid` VARCHAR(250)
+)
+    READS SQL DATA
+BEGIN
+        IF (SELECT 1 = 1 FROM DeVice WHERE DV_id = deviceid) THEN
+        BEGIN
+                DELETE FROM ActualPlaying WHERE AP_DV_id = deviceid;
+
+                DROP TABLE IF EXISTS tmppl;
+                CREATE TEMPORARY TABLE tmppl (`tmp_id` INT(10) UNSIGNED NOT NULL AUTO_INCREMENT, `tmp_TKid` INT(10) UNSIGNED NOT NULL, PRIMARY KEY (`tmp_id`));
+
+                INSERT INTO tmppl
+                SELECT null, TracK.TK_id
+                FROM TracK
+                LEFT JOIN ArtisT ON TK_AT_id = AT_id
+                LEFT JOIN AlbuM ON TK_AM_id = AM_id
+                WHERE TK_FileName LIKE "//musik%" 
+                ORDER BY AT_id, AM_Index, AM_id, TK_Index, TK_id;
+
+                INSERT INTO ActualPlaying
+        		SELECT deviceid, tmppl.tmp_TKid, tmppl.tmp_id, 0, NULL, NULL, 0 FROM tmppl;
+        END;
+        END IF;
+END//
+DELIMITER ;
+
+-- Exportiere Struktur von Prozedur spUpdateActualPlayList
+DROP PROCEDURE IF EXISTS `spUpdateActualPlayList`;
+DELIMITER //
+CREATE PROCEDURE `spUpdateActualPlayList`(
+        IN `deviceid` VARCHAR(250),
+        IN `SearchString` VARCHAR(500)
+)
+    READS SQL DATA
+BEGIN
+	IF (SELECT 1 = 1 FROM DeVice WHERE DV_id = deviceid) THEN
+	BEGIN
+		SET @PlayList = CONCAT('%', SearchString, '%');
+		DELETE FROM ActualPlaying WHERE AP_DV_id = deviceid;
+
+		DROP TABLE IF EXISTS tmppl;
+		CREATE TEMPORARY TABLE tmppl (`tmp_id` INT(10) UNSIGNED NOT NULL AUTO_INCREMENT, `tmp_TKid` INT(10) UNSIGNED NOT NULL, PRIMARY KEY (`tmp_id`));
+
+		INSERT INTO tmppl
+		SELECT null, TracK.TK_id
+		FROM PlaylistitemS
+		LEFT JOIN PlaylisT on PT_id = PS_PT_id
+		LEFT JOIN TracK ON PS_TK_FileName = TK_FileName
+		LEFT JOIN ArtisT ON TK_AT_id = AT_id
+		LEFT JOIN AlbuM ON TK_AM_id = AM_id
+		WHERE PT_Name SOUNDS LIKE @PlayList;
+
+		INSERT INTO ActualPlaying
+        SELECT deviceid, tmppl.tmp_TKid, tmppl.tmp_id, 0, NULL, NULL, 0 FROM tmppl;
 	END;
 	END IF;
 END//

@@ -4,6 +4,13 @@
             "invocationName": "<SKILLNAME>",
             "intents": [
                 {
+                    "name": "StartPlayMusic",
+                    "slots": [],
+                    "samples": [
+                        "spiele Musik"
+                    ]
+                },
+                {
                     "name": "StartPlay",
                     "slots": [
                         {
@@ -25,6 +32,26 @@
                     ]
                 },
                 {
+                    "name": "StartPlayEpisode",
+                    "slots": [
+                        {
+                            "name": "Episode",
+                            "type": "SEARCHEpisode"
+                        },
+                        {
+                            "name": "ArtistName",
+                            "type": "SEARCHArtistName"
+                        }
+                    ],
+                    "samples": [
+                        "spiele Folge {Episode} von {ArtistName}",
+                        "spiel Folge {Episode} von {ArtistName}",
+                        "spiele Episode {Episode} von {ArtistName}",
+                        "spiel Episode {Episode} von {ArtistName}",
+                        "spiele {ArtistName} Folge {Episode}"
+                    ]
+                },
+                {
                     "name": "StartPlayAlbumOrTitle",
                     "slots": [
                         {
@@ -37,8 +64,63 @@
                         }
                     ],
                     "samples": [
+                        "spiele Musik von {ArtistName}",
                         "spiele {AlbumOrTitle} von {ArtistName}",
-                        "spiel {AlbumOrTitle} von {ArtistName}"
+                        "spiel {AlbumOrTitle} von {ArtistName}",
+                        "{AlbumOrTitle} von {ArtistName}",
+                        "{ArtistName} folge {AlbumOrTitle}"
+                    ]
+                },
+                {
+                    "name": "ListPlayList",
+                    "slots": [],
+                    "samples": [
+                        "welche Listen gibt es",
+                        "welche Playlisten gibt es"
+                    ]
+                },
+                {
+                    "name": "StartPlayList",
+                    "slots": [
+                        {
+                            "name": "PlayListName",
+                            "type": "SEARCHPlayListName"
+                        }
+                    ],
+                    "samples": [
+                        "öffne Playlist {PlayListName}",
+                        "spiele Playlist {PlayListName}",
+                        "starte Playlist {PlayListName}",
+                        "spiele Sammlung {PlayListName}",
+                        "Playlist {PlayListName}"
+                    ]
+                },
+                {
+                    "name": "AddToPlayList",
+                    "slots": [
+                        {
+                            "name": "PlayListName",
+                            "type": "SEARCHPlayListName"
+                        }
+                    ],
+                    "samples": [
+                        "zu Playlist {PlayListName} hinzufügen",
+                        "Titel zu Playlist {PlayListName} hinzufügen"
+                    ]
+                },
+                {
+                    "name": "RemoveFromPlayList",
+                    "slots": [
+                        {
+                            "name": "PlayListName",
+                            "type": "SEARCHPlayListName"
+                        }
+                    ],
+                    "samples": [
+                        "von Playlist {PlayListName} löschen",
+                        "von Playlist {PlayListName} entfernen",
+                        "Titel von Playlist {PlayListName} löschen",
+                        "Titel von Playlist {PlayListName} entfernen"
                     ]
                 },
                 {
@@ -57,6 +139,7 @@
                     "name": "CurrentlyPlaying",
                     "slots": [],
                     "samples": [
+                        "wie heißt dieser Titel",
                         "Was läuft gerade",
                         "Was ist das"
                     ]
@@ -98,11 +181,19 @@
                     "samples": []
                 },
                 {
+                    "name": "AMAZON.PreviousIntent",
+                    "samples": []
+                },
+                {
                     "name": "AMAZON.RepeatIntent",
                     "samples": []
                 },
                 {
                     "name": "AMAZON.StartOverIntent",
+                    "samples": []
+                },
+                {
+                    "name": "AMAZON.NavigateHomeIntent",
                     "samples": []
                 }
             ],
@@ -178,6 +269,56 @@
                         {
                             "name": {
                                 "value": "An Cafe"
+                            }
+                        }
+                    ]
+                },
+                {
+                    "name": "SEARCHPlayListName",
+                    "values": [
+                        {
+                            "name": {
+                                "value": "mylist"
+                            }
+                        },
+                        {
+                            "name": {
+                                "value": "mylist rock"
+                            }
+                        },
+                        {
+                            "name": {
+                                "value": "yourlist"
+                            }
+                        },
+                        {
+                            "name": {
+                                "value": "An Cafe"
+                            }
+                        }
+                    ]
+                },
+                {
+                    "name": "SEARCHEpisode",
+                    "values": [
+                        {
+                            "name": {
+                                "value": "100"
+                            }
+                        },
+                        {
+                            "name": {
+                                "value": "001 - 003"
+                            }
+                        },
+                        {
+                            "name": {
+                                "value": "10"
+                            }
+                        },
+                        {
+                            "name": {
+                                "value": "0"
                             }
                         }
                     ]

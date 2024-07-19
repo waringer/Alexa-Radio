@@ -95,9 +95,10 @@ func audioHandler(echoReq *alexa.EchoRequest, echoResp *alexa.EchoResponse) {
 	switch echoReq.Request.Type {
 	case "AudioPlayer.PlaybackStarted":
 		log.Printf("type AudioPlayer.PlaybackStarted")
-		shared.MarkTrackPlayed(echoReq.Context.System.Device.DeviceId, extractTrackID(echoReq.Request.Token))
+		shared.MarkTrackSelected(echoReq.Context.System.Device.DeviceId, extractTrackID(echoReq.Request.Token))
 	case "AudioPlayer.PlaybackStopped":
 		log.Printf("type AudioPlayer.PlaybackStopped")
+		shared.MarkTrackPlayed(echoReq.Context.System.Device.DeviceId, extractTrackID(echoReq.Request.Token))
 	case "AudioPlayer.PlaybackFinished":
 		log.Printf("type AudioPlayer.PlaybackFinished")
 	case "AudioPlayer.PlaybackFailed":
@@ -107,6 +108,7 @@ func audioHandler(echoReq *alexa.EchoRequest, echoResp *alexa.EchoResponse) {
 		if !shared.ShouldStopPlaying(echoReq.Context.System.Device.DeviceId) {
 			nextTrackID := shared.GetNextTrackID(echoReq.Context.System.Device.DeviceId)
 			nextFileName := shared.GetTrackFileName(nextTrackID)
+			shared.MarkTrackPlayed(echoReq.Context.System.Device.DeviceId, extractTrackID(echoReq.Request.Token))
 
 			if nextFileName != "" {
 				directive := makeAudioPlayDirective(nextFileName, true, nextTrackID)
@@ -147,12 +149,23 @@ func radioHandler(echoReq *alexa.EchoRequest, echoResp *alexa.EchoResponse) {
 		//card := fmt.Sprint("Shuffle ist jetzt aus")
 		//speech = fmt.Sprintf("%s%s</speak>", speech, card)
 	case "AMAZON.StartOverIntent":
+                if !shared.ShouldStopPlaying(echoReq.Context.System.Device.DeviceId) {
+                        playingTrackID := shared.GetPlayingTrackID(echoReq.Context.System.Device.DeviceId)
+                        playingFileName := shared.GetTrackFileName(playingTrackID)
+
+                if playingFileName != "" {
+                                directive := makeAudioPlayDirective(playingFileName, false, playingTrackID)
+                                log.Println("URL:", directive.AudioItem.Stream.Url)
+                                echoResp.Response.Directives = append(echoResp.Response.Directives, directive)
+                        }
+                } else {
+                        //inform user that playlist is at end
+                        card := fmt.Sprint(getRandomResponse(responses.PlaylistEnd)) // Puh, endlich kann ich ausruhen! Playlist ist durch.
+                        speech := fmt.Sprintf("<speak>%s</speak>", card)
+                        echoResp.OutputSpeechSSML(speech).Card("Network Music Player", card)
+                }
 		log.Printf("StartOver intent")
 
-		//todo implement
-		card := fmt.Sprint(getRandomResponse(responses.NotImplemented)) // Stör mich jetzt nicht, ich hab zu tun!
-		speech := fmt.Sprintf("<speak>%s</speak>", card)
-		echoResp.OutputSpeechSSML(speech).Card("Network Music Player", card)
 	case "AMAZON.RepeatIntent":
 		log.Printf("Repeat intent")
 
@@ -201,9 +214,151 @@ func radioHandler(echoReq *alexa.EchoRequest, echoResp *alexa.EchoResponse) {
 			echoResp.OutputSpeechSSML(speech).Card("Network Music Player", card)
 		}
 		log.Printf("Next intent")
+	case "AMAZON.PreviousIntent":
+		if !shared.ShouldStopPlaying(echoReq.Context.System.Device.DeviceId) {
+			playingTrackID := shared.GetPlayingTrackID(echoReq.Context.System.Device.DeviceId)
+			prevTrackID := shared.GetPrevTrackID(echoReq.Context.System.Device.DeviceId, playingTrackID)
+			prevFileName := shared.GetTrackFileName(prevTrackID)
+			log.Println("PLAY:", playingTrackID, "PREV:", prevTrackID, "FILENAME:", prevFileName)
+
+			if prevFileName != "" {
+				directive := makeAudioPlayDirective(prevFileName, false, prevTrackID)
+				log.Println("URL:", directive.AudioItem.Stream.Url)
+				echoResp.Response.Directives = append(echoResp.Response.Directives, directive)
+			}
+		} else {
+			//inform user that playlist is at end
+			card := fmt.Sprint(getRandomResponse(responses.PlaylistEnd)) // Puh, endlich kann ich ausruhen! Playlist ist durch.
+			speech := fmt.Sprintf("<speak>%s</speak>", card)
+			echoResp.OutputSpeechSSML(speech).Card("Network Music Player", card)
+		}
+		log.Printf("PreviousIntent intent")
 	case "AMAZON.HelpIntent":
 		log.Printf("Help intent")
 		fallthrough
+
+
+        case "StartPlayList":
+                log.Printf("StartPlayList intent")
+                SearchString := strings.TrimSpace(echoReq.Request.Intent.Slots["PlayListName"].Value)
+
+                if SearchString != "" {
+                        shared.UpdateActualPlayList(echoReq.Context.System.Device.DeviceId, SearchString)
+                        nextTrackID := shared.GetNextTrackID(echoReq.Context.System.Device.DeviceId)
+                        nextFileName := shared.GetTrackFileName(nextTrackID)
+
+                        shared.SwitchShuffle(echoReq.Context.System.Device.DeviceId, true)
+
+                        if nextFileName != "" {
+                                directive := makeAudioPlayDirective(nextFileName, false, nextTrackID)
+                                log.Println("URL:", directive.AudioItem.Stream.Url)
+
+                                card := fmt.Sprintf(getRandomResponse(responses.Searching), SearchString) // ich such ja schon %s raus
+                                speech := fmt.Sprintf("<speak>%s</speak>", card)
+                                echoResp.OutputSpeechSSML(speech).Card("Network Music Player", card)
+
+                                echoResp.Response.Directives = append(echoResp.Response.Directives, directive)
+                         } else {
+                                card := fmt.Sprintf(getRandomResponse(responses.CantFind), SearchString) // Ich konnte für %s absolut nix finden!
+                                speech := fmt.Sprintf("<speak>%s</speak>", card)
+                                echoResp.OutputSpeechSSML(speech).Card("Network Music Player", card)
+                        }
+                    }
+
+        case "ListPlayList":
+		log.Println("====> all available PlayLists")
+
+		playLists := shared.GetPlayListNames(echoReq.Context.System.Device.DeviceId)
+		log.Printf("PlayListNames: ", playLists)
+		card := "Es gibt folgende Playlisten:"
+		for _, playList := range playLists {
+			card += fmt.Sprintf(" %s ", playList)
+			log.Printf("PlayListName: ", playList)
+			}
+		speech := fmt.Sprintf("<speak>%s</speak>", card)
+                echoResp.OutputSpeechSSML(speech).Card("Network Music Player", card)
+
+
+
+	case "AddPlayList":
+                log.Println("====> AddPlayList")
+		/* SearchString := strings.TrimSpace(echoReq.Request.Intent.Slots["PlayListName"].Value)
+
+                 if SearchString != "" {
+                        shared.AddPlayList(SearchString)
+                    } */
+
+	case "RemovePlayList":
+                log.Println("====> RemovePlayList")
+		/* SearchString := "" //strings.TrimSpace(echoReq.Request.Intent.Slots["PlayListName"].Value)
+
+                 if SearchString != "" {
+                        shared.DelPlayList(SearchString)
+                    } */
+
+        case "AddToPlayList":
+                log.Println("====> AddToPlayList")
+                SearchString := strings.TrimSpace(echoReq.Request.Intent.Slots["PlayListName"].Value)
+		// get PlaylisT ID and Name by sounds like query
+		PT_id, PT_Name := shared.GetPlayListInfo(SearchString)
+		log.Printf("PlayListName: ", SearchString, PT_Name, PT_id)
+
+                if PT_Name != "" {
+			// get TrackID and Filename from actual title
+                        TrackID := shared.GetTrackID(echoReq.Context.System.Device.DeviceId)
+                        FileName := shared.GetTrackFileName(TrackID)
+
+			log.Printf("TrackID: ", TrackID)
+			log.Printf("FileName: ", FileName)
+                        if FileName != "" {
+				shared.AddToPlayList(PT_id, FileName)
+				// add PlaylistItem
+                                card := fmt.Sprintf("erledigt") // ich such ja schon %s raus
+                                speech := fmt.Sprintf("<speak>%s</speak>", card)
+                                echoResp.OutputSpeechSSML(speech).Card("Network Music Player", card)
+                        } else {
+                                card := fmt.Sprintf("kein Titel ausgewählt")
+                                speech := fmt.Sprintf("<speak>%s</speak>", card)
+                                echoResp.OutputSpeechSSML(speech).Card("Network Music Player", card)
+                        }
+                  } else {
+			  card := fmt.Sprintf("Playlist: ", SearchString, " nicht gefunden") // Ich konnte für %s absolut nix finden!
+                           speech := fmt.Sprintf("<speak>%s</speak>", card)
+                           echoResp.OutputSpeechSSML(speech).Card("Network Music Player", card)
+                        }
+
+	case "RemoveFromPlayList":
+                log.Println("====> RemoveFromPlayList")
+                SearchString := strings.TrimSpace(echoReq.Request.Intent.Slots["PlayListName"].Value)
+                // get PlaylisT ID and Name by sounds like query
+                PT_id, PT_Name := shared.GetPlayListInfo(SearchString)
+                log.Printf("PlayListName: ", SearchString, PT_Name, PT_id)
+
+                if PT_Name != "" {
+                        // get TrackID and Filename from actual title
+                        TrackID := shared.GetTrackID(echoReq.Context.System.Device.DeviceId)
+                        FileName := shared.GetTrackFileName(TrackID)
+
+                        log.Printf("TrackID: ", TrackID)
+                        log.Printf("FileName: ", FileName)
+                        if FileName != "" {
+                                shared.RemoveFromPlayList(PT_id, FileName)
+                                // add PlaylistItem
+                                card := fmt.Sprintf("erledigt") // ich such ja schon %s raus
+                                speech := fmt.Sprintf("<speak>%s</speak>", card)
+                                echoResp.OutputSpeechSSML(speech).Card("Network Music Player", card)
+                        } else {
+                                card := fmt.Sprintf("kein Titel ausgewählt")
+                                speech := fmt.Sprintf("<speak>%s</speak>", card)
+                                echoResp.OutputSpeechSSML(speech).Card("Network Music Player", card)
+                        }
+                  } else {
+                          card := fmt.Sprintf("Playlist: ", SearchString, " nicht gefunden") // Ich konnte für %s absolut nix finden!
+                           speech := fmt.Sprintf("<speak>%s</speak>", card)
+                           echoResp.OutputSpeechSSML(speech).Card("Network Music Player", card)
+                        }
+
+
 	case "CurrentlyPlaying":
 		log.Printf("CurrentlyPlaying intent")
 
@@ -278,6 +433,32 @@ func radioHandler(echoReq *alexa.EchoRequest, echoResp *alexa.EchoResponse) {
 				echoResp.OutputSpeechSSML(speech).Card("Network Music Player", card)
 			}
 		}
+	case "StartPlayMusic":
+                log.Printf("StartPlayMusic intent")
+                log.Println("====> all files in music-folder")
+
+                shared.UpdateActualPlayingMusic(echoReq.Context.System.Device.DeviceId, "")
+                nextTrackID := shared.GetNextTrackID(echoReq.Context.System.Device.DeviceId)
+                nextFileName := shared.GetTrackFileName(nextTrackID)
+
+                shared.SwitchShuffle(echoReq.Context.System.Device.DeviceId, true)
+
+                if nextFileName != "" {
+                        directive := makeAudioPlayDirective(nextFileName, false, nextTrackID)
+                        log.Println("URL:", directive.AudioItem.Stream.Url)
+
+                        card := fmt.Sprintf(getRandomResponse(responses.Searching), "Music") // ich such ja schon %s raus
+                        speech := fmt.Sprintf("<speak>%s</speak>", card)
+                        echoResp.OutputSpeechSSML(speech).Card("Network Music Player", card)
+
+                        echoResp.Response.Directives = append(echoResp.Response.Directives, directive)
+                } else {
+                        card := fmt.Sprintf(getRandomResponse(responses.CantFind), "Music") // Ich konnte für %s absolut nix finden!
+                        speech := fmt.Sprintf("<speak>%s</speak>", card)
+                        echoResp.OutputSpeechSSML(speech).Card("Network Music Player", card)
+                }
+
+
 	case "StartPlayAlbumOrTitle":
 		log.Printf("StartPlayAlbumOrTitle intent")
 		SEARCHAlbumOrTitle := strings.TrimSpace(echoReq.Request.Intent.Slots["AlbumOrTitle"].Value)
@@ -305,7 +486,36 @@ func radioHandler(echoReq *alexa.EchoRequest, echoResp *alexa.EchoResponse) {
 				speech := fmt.Sprintf("<speak>%s</speak>", card)
 				echoResp.OutputSpeechSSML(speech).Card("Network Music Player", card)
 			}
+		}
+	case "StartPlayEpisode":
+		log.Printf("StartPlayEpisode intent")
+		SEARCHEpisode := strings.TrimSpace(echoReq.Request.Intent.Slots["Episode"].Value)
+		SEARCHArtistName := strings.TrimSpace(echoReq.Request.Intent.Slots["ArtistName"].Value)
+		SearchString := "\"" + SEARCHEpisode + "\"" + " von " + SEARCHArtistName
+		log.Println("====>", SearchString)
+		log.Println("====>", SEARCHEpisode, SEARCHArtistName)
 
+		shared.SwitchShuffle(echoReq.Context.System.Device.DeviceId, false)
+
+		if SearchString != "" {
+			shared.UpdateActualPlayingEpisode(echoReq.Context.System.Device.DeviceId, SEARCHEpisode, SEARCHArtistName)
+			nextTrackID := shared.GetNextTrackID(echoReq.Context.System.Device.DeviceId)
+			nextFileName := shared.GetTrackFileName(nextTrackID)
+
+			if nextFileName != "" {
+				directive := makeAudioPlayDirective(nextFileName, false, nextTrackID)
+				log.Println("URL:", directive.AudioItem.Stream.Url)
+
+				card := fmt.Sprintf(getRandomResponse(responses.Searching), SearchString) // ich such ja schon %s raus
+				speech := fmt.Sprintf("<speak>%s</speak>", card)
+				echoResp.OutputSpeechSSML(speech).Card("Network Music Player", card)
+
+				echoResp.Response.Directives = append(echoResp.Response.Directives, directive)
+			} else {
+				card := fmt.Sprintf(getRandomResponse(responses.CantFind), SearchString) // Ich konnte für %s absolut nix finden!
+				speech := fmt.Sprintf("<speak>%s</speak>", card)
+				echoResp.OutputSpeechSSML(speech).Card("Network Music Player", card)
+			}
 		} else {
 			goto AskUser
 		}
@@ -331,7 +541,8 @@ func makeAudioPlayDirective(fileName string, enqueu bool, trackID int) alexa.Ech
 	if enqueu {
 		playBehavior = "REPLACE_ENQUEUED"
 	}
-
+        Artist, Album, Track := shared.GetPlayingInfoTrackID(trackID)
+	Album = Album + ""
 	return alexa.EchoDirective{
 		Type:         "AudioPlayer.Play",
 		PlayBehavior: playBehavior,
@@ -339,7 +550,10 @@ func makeAudioPlayDirective(fileName string, enqueu bool, trackID int) alexa.Ech
 			Stream: alexa.EchoStream{
 				Url:                  shared.UrlEncode(fileName),
 				Token:                fmt.Sprintf("NMP~%d~%s", trackID, time.Now().Format("20060102T150405999999")),
-				OffsetInMilliseconds: 0}}}
+                                OffsetInMilliseconds: 0},
+                        Metadata: alexa.AudioItemMetadata{
+                                                Title: Track,
+                                                Subtitle: Artist}}}
 }
 
 func extractTrackID(Token string) (TKid int) {
