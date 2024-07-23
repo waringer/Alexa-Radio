@@ -13,12 +13,12 @@ import (
 	"strings"
 	"time"
 
-	"github.com/waringer/Alexa-Radio/shared"
+	"github.com/bschirrmeister/Alexa-Radio/shared"
 
 	"github.com/codegangsta/negroni"
 	_ "github.com/go-sql-driver/mysql"
 	"github.com/gorilla/mux"
-	alexa "github.com/waringer/go-alexa/skillserver"
+	alexa "github.com/bschirrmeister/go-alexa/skillserver"
 )
 
 var (
@@ -73,6 +73,7 @@ func main() {
 			OnSessionEnded:     infoHandler,
 			OnAudioPlayerState: audioHandler,
 			OnException:        infoHandler,
+			OnPlaybackController: playbackHandler,
 		},
 	}
 
@@ -88,8 +89,74 @@ func runAlexa(apps map[string]interface{}, ip, port string) {
 	n.Run(ip + ":" + port)
 }
 
+func playbackHandler(echoReq *alexa.EchoRequest, echoResp *alexa.EchoResponse) {
+        log.Printf("----> PlaybackController Request Typ %s empfangen, UserID %s\n", echoReq.Request, echoReq.Session.User.UserID)
+        shared.RegisterDevice(echoReq.Context.System.Device.DeviceId)
+
+        switch echoReq.Request.Type {
+        case "PlaybackController.NextCommandIssued":
+                log.Println("abcd: NEXT")
+                if !shared.ShouldStopPlaying(echoReq.Context.System.Device.DeviceId) {
+                        nextTrackID := shared.GetNextTrackID(echoReq.Context.System.Device.DeviceId)
+                        nextFileName := shared.GetTrackFileName(nextTrackID)
+
+                        if nextFileName != "" {
+                                directive := makeAudioPlayDirective(nextFileName, false, nextTrackID)
+                                log.Println("URL:", directive.AudioItem.Stream.Url)
+                                echoResp.Response.Directives = append(echoResp.Response.Directives, directive)
+                        }
+                } else {
+                        //inform user that playlist is at end
+                        card := fmt.Sprint(getRandomResponse(responses.PlaylistEnd)) // Puh, endlich kann ich ausruhen! Playlist ist durch.
+                        speech := fmt.Sprintf("<speak>%s</speak>", card)
+                        echoResp.OutputSpeechSSML(speech).Card("Network Music Player", card)
+                }
+                log.Printf("Next intent")
+        case "PlaybackController.PreviousCommandIssued":
+                if !shared.ShouldStopPlaying(echoReq.Context.System.Device.DeviceId) {
+                        playingTrackID := shared.GetPlayingTrackID(echoReq.Context.System.Device.DeviceId)
+                        prevTrackID := shared.GetPrevTrackID(echoReq.Context.System.Device.DeviceId, playingTrackID)
+                        prevFileName := shared.GetTrackFileName(prevTrackID)
+                        log.Println("PLAY:", playingTrackID, "PREV:", prevTrackID, "FILENAME:", prevFileName)
+
+                        if prevFileName != "" {
+                                directive := makeAudioPlayDirective(prevFileName, false, prevTrackID)
+                                log.Println("URL:", directive.AudioItem.Stream.Url)
+                                echoResp.Response.Directives = append(echoResp.Response.Directives, directive)
+                        }
+                } else {
+                        //inform user that playlist is at end
+                        card := fmt.Sprint(getRandomResponse(responses.PlaylistEnd)) // Puh, endlich kann ich ausruhen! Playlist ist durch.
+                        speech := fmt.Sprintf("<speak>%s</speak>", card)
+                        echoResp.OutputSpeechSSML(speech).Card("Network Music Player", card)
+                }
+                log.Printf("PreviousIntent intent")
+        case "PlaybackController.PauseCommandIssued":
+                Directive := alexa.EchoDirective{Type: "AudioPlayer.Stop"}
+                echoResp.Response.Directives = append(echoResp.Response.Directives, Directive)
+                log.Printf("Pause intent")
+        case "PlaybackController.PlayCommandIssued":
+                if !shared.ShouldStopPlaying(echoReq.Context.System.Device.DeviceId) {
+                        playingTrackID := shared.GetPlayingTrackID(echoReq.Context.System.Device.DeviceId)
+                        playingFileName := shared.GetTrackFileName(playingTrackID)
+
+                if playingFileName != "" {
+                                directive := makeAudioPlayDirective(playingFileName, false, playingTrackID)
+                                log.Println("URL:", directive.AudioItem.Stream.Url)
+                                echoResp.Response.Directives = append(echoResp.Response.Directives, directive)
+                        }
+                } else {
+                        //inform user that playlist is at end
+                        card := fmt.Sprint(getRandomResponse(responses.PlaylistEnd)) // Puh, endlich kann ich ausruhen! Playlist ist durch.
+                        speech := fmt.Sprintf("<speak>%s</speak>", card)
+                        echoResp.OutputSpeechSSML(speech).Card("Network Music Player", card)
+                }
+                log.Printf("StartOver intent")
+	}
+}
+
 func audioHandler(echoReq *alexa.EchoRequest, echoResp *alexa.EchoResponse) {
-	log.Printf("----> Audio Request Typ %s empfangen, UserID %s\n", echoReq.Request.Type, echoReq.Session.User.UserID)
+	log.Printf("----> Audio Request Typ %s empfangen, UserID %s\n", echoReq.Request, echoReq.Session.User.UserID)
 	shared.RegisterDevice(echoReq.Context.System.Device.DeviceId)
 
 	switch echoReq.Request.Type {
@@ -197,7 +264,8 @@ func radioHandler(echoReq *alexa.EchoRequest, echoResp *alexa.EchoResponse) {
 		Directive := alexa.EchoDirective{Type: "AudioPlayer.Stop"}
 		echoResp.Response.Directives = append(echoResp.Response.Directives, Directive)
 		log.Printf("Stop intent")
-	case "AMAZON.NextIntent":
+	case "AMAZON.NextIntent", "PlaybackController.NextCommandIssued":
+		log.Println("abcd: NEXT")
 		if !shared.ShouldStopPlaying(echoReq.Context.System.Device.DeviceId) {
 			nextTrackID := shared.GetNextTrackID(echoReq.Context.System.Device.DeviceId)
 			nextFileName := shared.GetTrackFileName(nextTrackID)
