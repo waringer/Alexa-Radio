@@ -264,7 +264,6 @@ func radioHandler(echoReq *alexa.EchoRequest, echoResp *alexa.EchoResponse) {
 		echoResp.Response.Directives = append(echoResp.Response.Directives, Directive)
 		log.Printf("Stop intent")
 	case "AMAZON.NextIntent":
-		log.Println("abcd: NEXT")
 		if !shared.ShouldStopPlaying(echoReq.Context.System.Device.DeviceId) {
 			nextTrackID := shared.GetNextTrackID(echoReq.Context.System.Device.DeviceId)
 			nextFileName := shared.GetTrackFileName(nextTrackID)
