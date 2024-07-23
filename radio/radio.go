@@ -95,7 +95,6 @@ func playbackHandler(echoReq *alexa.EchoRequest, echoResp *alexa.EchoResponse) {
 
         switch echoReq.Request.Type {
         case "PlaybackController.NextCommandIssued":
-                log.Println("abcd: NEXT")
                 if !shared.ShouldStopPlaying(echoReq.Context.System.Device.DeviceId) {
                         nextTrackID := shared.GetNextTrackID(echoReq.Context.System.Device.DeviceId)
                         nextFileName := shared.GetTrackFileName(nextTrackID)
@@ -156,7 +155,7 @@ func playbackHandler(echoReq *alexa.EchoRequest, echoResp *alexa.EchoResponse) {
 }
 
 func audioHandler(echoReq *alexa.EchoRequest, echoResp *alexa.EchoResponse) {
-	log.Printf("----> Audio Request Typ %s empfangen, UserID %s\n", echoReq.Request, echoReq.Session.User.UserID)
+	log.Printf("----> Audio Request Typ %s empfangen, UserID %s\n", echoReq.Request.Type, echoReq.Session.User.UserID)
 	shared.RegisterDevice(echoReq.Context.System.Device.DeviceId)
 
 	switch echoReq.Request.Type {
