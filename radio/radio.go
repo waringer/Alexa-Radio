@@ -264,7 +264,7 @@ func radioHandler(echoReq *alexa.EchoRequest, echoResp *alexa.EchoResponse) {
 		Directive := alexa.EchoDirective{Type: "AudioPlayer.Stop"}
 		echoResp.Response.Directives = append(echoResp.Response.Directives, Directive)
 		log.Printf("Stop intent")
-	case "AMAZON.NextIntent", "PlaybackController.NextCommandIssued":
+	case "AMAZON.NextIntent":
 		log.Println("abcd: NEXT")
 		if !shared.ShouldStopPlaying(echoReq.Context.System.Device.DeviceId) {
 			nextTrackID := shared.GetNextTrackID(echoReq.Context.System.Device.DeviceId)
