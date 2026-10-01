@@ -1,12 +1,15 @@
 package main
 
 import (
+	"bytes"
 	"encoding/json"
 	"flag"
 	"fmt"
+	"io"
 	"io/ioutil"
 	"log"
 	"math/rand"
+	"net/http"
 	"os"
 	"regexp"
 	"strconv"
@@ -85,8 +88,27 @@ func runAlexa(apps map[string]interface{}, ip, port string) {
 	alexa.Init(apps, router)
 
 	n := negroni.Classic()
+	n.Use(negroni.HandlerFunc(logPlaybackFailedBody))
 	n.UseHandler(router)
 	n.Run(ip + ":" + port)
+}
+
+// logPlaybackFailedBody logs the raw JSON of PlaybackFailed requests, because the
+// alexa lib does not parse request.error and request.currentPlaybackState.
+func logPlaybackFailedBody(w http.ResponseWriter, r *http.Request, next http.HandlerFunc) {
+	if r.Method == http.MethodPost && r.Body != nil {
+		body, err := ioutil.ReadAll(io.LimitReader(r.Body, 1<<20))
+		r.Body.Close()
+		if err == nil {
+			if bytes.Contains(body, []byte("AudioPlayer.PlaybackFailed")) {
+				log.Printf("PlaybackFailed raw request: %s", body)
+			}
+		} else {
+			log.Printf("can't read request body: %v", err)
+		}
+		r.Body = ioutil.NopCloser(bytes.NewReader(body))
+	}
+	next(w, r)
 }
 
 func audioHandler(echoReq *alexa.EchoRequest, echoResp *alexa.EchoResponse) {
@@ -104,6 +126,12 @@ func audioHandler(echoReq *alexa.EchoRequest, echoResp *alexa.EchoResponse) {
 		log.Printf("type AudioPlayer.PlaybackFinished")
 	case "AudioPlayer.PlaybackFailed":
 		log.Printf("type AudioPlayer.PlaybackFailed")
+		failedTrackID := extractTrackID(echoReq.Request.Token)
+		failedFileName := shared.GetTrackFileName(failedTrackID)
+		log.Printf("PlaybackFailed: device=%s requestID=%s timestamp=%s token=%q trackID=%d file=%q url=%q",
+			echoReq.Context.System.Device.DeviceId, echoReq.Request.RequestID, echoReq.Request.Timestamp,
+			echoReq.Request.Token, failedTrackID, failedFileName, shared.UrlEncode(failedFileName))
+		checkTrackURL(shared.UrlEncode(failedFileName))
 		fallthrough
 	case "AudioPlayer.PlaybackNearlyFinished":
 		if !shared.ShouldStopPlaying(echoReq.Context.System.Device.DeviceId) {
@@ -121,6 +149,19 @@ func audioHandler(echoReq *alexa.EchoRequest, echoResp *alexa.EchoResponse) {
 	default:
 		log.Printf("type unknown")
 	}
+}
+
+// checkTrackURL does a HEAD request against the stream url and logs the outcome.
+func checkTrackURL(url string) {
+	client := http.Client{Timeout: 5 * time.Second}
+	resp, err := client.Head(url)
+	if err != nil {
+		log.Printf("PlaybackFailed url check %q: %v", url, err)
+		return
+	}
+	defer resp.Body.Close()
+	log.Printf("PlaybackFailed url check %q: status=%s content-type=%q content-length=%d",
+		url, resp.Status, resp.Header.Get("Content-Type"), resp.ContentLength)
 }
 
 func infoHandler(echoReq *alexa.EchoRequest, echoResp *alexa.EchoResponse) {
