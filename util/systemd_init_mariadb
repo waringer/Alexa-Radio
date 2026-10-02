@@ -1,0 +1,15 @@
+# Template for /etc/systemd/system/alexa-radio.service (mariadb)
+# Adjust the DB unit name if needed (older systems: mysqld.service)
+[Unit]
+Description=Alexa-Radio
+After=network.target mariadb.service
+Wants=mariadb.service
+
+[Service]
+ExecStart=/usr/local/bin/radio -c /etc/radio.conf
+Type=simple
+WatchdogSec=0s
+Restart=on-failure
+
+[Install]
+WantedBy=multi-user.target

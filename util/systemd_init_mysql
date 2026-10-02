@@ -1,6 +1,9 @@
+# Template for /etc/systemd/system/alexa-radio.service (mysql)
+# Adjust the DB unit name if needed (Debian/Ubuntu: mysql.service)
 [Unit]
 Description=Alexa-Radio
 After=network.target mysqld.service
+Wants=mysqld.service
 
 [Service]
 ExecStart=/usr/local/bin/radio -c /etc/radio.conf

@@ -1,7 +1,8 @@
 #!/bin/sh
 
 # PROVIDE: alexa_radio
-# REQUIRE: NETWORKING
+# REQUIRE: NETWORKING mysql
+# (the mysql-server and mariadb-server ports both use PROVIDE: mysql)
 
 #
 # Add the following line to /etc/rc.conf to enable alexa_radio:

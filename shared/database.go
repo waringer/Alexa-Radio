@@ -10,17 +10,47 @@ import (
 	_ "github.com/go-sql-driver/mysql"
 )
 
-func OpenDB() error {
+const (
+	dbRetryStart = 1 * time.Second
+	dbRetryMax   = 30 * time.Second
+)
+
+// OpenDB connects to the DB and waits (with growing pauses) while it is not
+// reachable, e.g. because it is still starting up at boot.
+// maxWait < 0 waits forever, 0 tries only once.
+func OpenDB(maxWait time.Duration) error {
 	Database = nil
 	db, err := sql.Open("mysql", fmt.Sprintf("%s:%s@tcp(%s)/%s", Conf.DBUser, Conf.DBPassword, Conf.DBServer, Conf.DBName))
 	if err != nil {
 		return err
 	}
 
-	// Open doesn't open a connection. Validate DSN data:
-	err = db.Ping()
-	if err != nil {
-		return err
+	// Open doesn't open a connection. Validate DSN data.
+	start := time.Now()
+	pause := dbRetryStart
+	for try := 1; ; try++ {
+		err = db.Ping()
+		if err == nil {
+			break
+		}
+
+		if maxWait >= 0 {
+			left := maxWait - time.Since(start)
+			if left <= 0 {
+				db.Close()
+				return err
+			}
+			if pause > left {
+				pause = left
+			}
+		}
+
+		log.Printf("waiting for DB (attempt %d, next retry in %v): %v", try, pause, err)
+		time.Sleep(pause)
+
+		if pause *= 2; pause > dbRetryMax {
+			pause = dbRetryMax
+		}
 	}
 
 	Database = db
