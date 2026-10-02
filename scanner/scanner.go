@@ -41,6 +41,7 @@ func main() {
 	confFile := flag.String("c", "radio.conf", "config file to use")
 	emptyDB := flag.Bool("e", false, "reset db before insert new")
 	version := flag.Bool("v", false, "prints current version and exit")
+	dbWait := flag.Duration("dbwait", 30*time.Second, "max. time to wait for the db at startup, 0 = don't wait")
 
 	cpuprofile := flag.String("cpuprofile", "", "write cpu profile `file`")
 	memprofile := flag.String("memprofile", "", "write memory profile to `file`")
@@ -71,9 +72,9 @@ func main() {
 	log.Printf("> Alexa-Radio Scanner startet %s - %s", buildstamp, githash)
 
 	//check db
-	err = shared.OpenDB()
+	err = shared.OpenDB(*dbWait)
 	if err != nil {
-		log.Fatalln("DB Fehler : ", err.Error())
+		log.Fatalf("DB not reachable (%s): %v\nThe scanner needs a running MySQL/MariaDB - start the server or check dbServer in %s (-dbwait extends the wait time)", shared.Conf.DBServer, err, *confFile)
 	}
 	defer shared.CloseDB()
 

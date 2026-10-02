@@ -34,6 +34,7 @@ func main() {
 	confFile := flag.String("c", "radio.conf", "config file to use")
 	reponseFile := flag.String("r", "response.conf", "response file to use")
 	version := flag.Bool("v", false, "prints current version and exit")
+	dbWait := flag.Duration("dbwait", -1, "max. time to wait for the db at startup, negative = forever")
 	flag.Parse()
 
 	if *version {
@@ -62,7 +63,7 @@ func main() {
 	shared.WritePid()
 
 	//check db
-	err = shared.OpenDB()
+	err = shared.OpenDB(*dbWait)
 	if err != nil {
 		log.Fatalln("DB Fehler : ", err.Error())
 	}
